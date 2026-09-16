@@ -15,7 +15,7 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# OS
+# OSnpx prisma --version
 .DS_Store
 
 # Tests
@@ -57,3 +57,13 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Prisma AI agent skills
+.agents/
+.claude/
+.cursor/
+.devin/
+
+# Prisma generated contract files
+src/prisma/contract.json
+src/prisma/contract.d.ts
