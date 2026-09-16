@@ -1,0 +1,6 @@
+// use prisma-8
+
+enum UserRole {
+  ADMIN
+}
+
