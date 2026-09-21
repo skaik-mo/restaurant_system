@@ -12,9 +12,26 @@ model User {
   email     String   @unique
   password  String
   role      UserRole
-  orders    Order[]
+  mustChangePassword         Boolean  @default(true)
+  emailVerified              Boolean  @default(false)
+  emailVerificationToken     String?
+  emailVerificationExpiresAt TimestamptzString?
+  passwordResetToken         String?
+  passwordResetExpiresAt     TimestamptzString?
+  orders        Order[]
+  refreshTokens RefreshToken[]
   createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String
+  expiresAt TimestamptzString
+  revoked   Boolean  @default(false)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt TimestamptzString @default(now())
 }
 
 model Category {
