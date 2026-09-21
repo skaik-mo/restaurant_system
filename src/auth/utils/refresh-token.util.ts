@@ -1,13 +1,8 @@
-import { randomBytes } from 'crypto';
 import * as argon2 from 'argon2';
 
 export interface ParsedRefreshToken {
   rowId: number;
   secret: string;
-}
-
-export function generateRefreshToken(): string {
-  return randomBytes(32).toString('base64url');
 }
 
 export function buildRefreshToken(rowId: number, secret: string): string {
