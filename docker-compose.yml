@@ -12,5 +12,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: restaurant_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web inbox
+    volumes:
+      - mailpit_data:/data
+    environment:
+      MP_DATABASE: /data/mailpit.db
+
 volumes:
   postgres_data:
+  mailpit_data:

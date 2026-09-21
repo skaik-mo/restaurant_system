@@ -234,12 +234,10 @@ export class AuthService {
       passwordResetExpiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS).toISOString(),
     });
 
-    // Deliberately not awaited: keeps response time similar whether or not the
-    // email exists. A mail failure must not change the response either.
     this.mail.sendPasswordResetEmail(user.email, token)
       .catch((err: unknown) => {
         this.logger.error(`Failed to send password reset email to user ${user.id}`, err);
-      });
+      })
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {

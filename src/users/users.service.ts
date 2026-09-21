@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { generateRandomToken } from '../common/utils/random-token.util.js';
 import { DatabaseService } from '../database/database.service.js';
@@ -12,6 +12,9 @@ export class UsersService {
     private readonly db: DatabaseService,
     private readonly mail: MailService,
   ) { }
+
+  private readonly logger = new Logger(UsersService.name);
+
 
   async create(dto: CreateUserDto) {
     await this.assertEmailAvailable(dto.email);
@@ -35,7 +38,15 @@ export class UsersService {
       emailVerificationExpiresAt,
     });
 
-    await this.mail.sendVerificationEmail(user.email, verificationToken);
+    let verificationEmailSent = true;
+    await this.mail.sendVerificationEmail(user.email, verificationToken)
+      .catch((err: unknown) => {
+        verificationEmailSent = false;
+        this.logger.error(
+          `Verification email failed for user ${user.id}; user was still created`,
+          err,
+        );
+      })
 
     return {
       id: user.id,
@@ -45,6 +56,7 @@ export class UsersService {
       mustChangePassword: user.mustChangePassword,
       emailVerified: user.emailVerified,
       createdAt: user.createdAt,
+      verificationEmailSent,
     };
   }
 
