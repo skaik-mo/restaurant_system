@@ -1,10 +1,9 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { generateRandomToken } from '../common/utils/random-token.util.js';
 import { DatabaseService } from '../database/database.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
-import { EMAIL_VERIFICATION_TTL_MS, hashVerificationToken } from '../common/utils/one-time-token.util.js';
 import { MailService } from '../mail/mail.service.js';
+import { createEmailVerificationToken } from '../common/utils/one-time-token.util.js';
 
 @Injectable()
 export class UsersService {
@@ -21,11 +20,11 @@ export class UsersService {
 
     const passwordHash = await argon2.hash(dto.password);
 
-    const verificationToken = generateRandomToken();
-    const emailVerificationToken = hashVerificationToken(verificationToken);
-    const emailVerificationExpiresAt = new Date(
-      Date.now() + EMAIL_VERIFICATION_TTL_MS,
-    ).toISOString();
+    const {
+      token: verificationToken,
+      tokenHash: emailVerificationToken,
+      expiresAt: emailVerificationExpiresAt,
+    } = createEmailVerificationToken();
 
     const user = await this.db.client.orm.public.User.create({
       name: dto.name,

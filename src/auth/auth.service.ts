@@ -1,11 +1,11 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { DatabaseService } from '../database/database.service.js';
 import { LoginDto } from './dto/body/login.dto.js';
 import { buildRefreshToken, hashRefreshToken, parseRefreshToken, verifyRefreshToken } from './utils/refresh-token.util.js';
 import { generateRandomToken } from '../common/utils/random-token.util.js';
-import { PASSWORD_RESET_TTL_MS, hashVerificationToken } from '../common/utils/one-time-token.util.js';
+import { PASSWORD_RESET_TTL_MS, hashVerificationToken, createEmailVerificationToken } from '../common/utils/one-time-token.util.js';
 import { ChangePasswordDto } from './dto/body/change-password.dto.js';
 import { MailService } from '../mail/mail.service.js';
 import { AuthUserResponseDto } from './dto/response/auth-user-response.dto.js';
@@ -174,34 +174,10 @@ export class AuthService {
     }
 
     await this.db.client.orm.public.RefreshToken
-    .where({ id: tokenRow.id })
-    .update({
-      revoked: true,
-    });
-  }
-
-  async verifyEmail(token: string): Promise<void> {
-    const tokenHash = hashVerificationToken(token);
-
-    const user = await this.db.client.orm.public.User.where({
-      emailVerificationToken: tokenHash,
-    }).first();
-
-    if (
-      !user ||
-      !user.emailVerificationExpiresAt ||
-      new Date(user.emailVerificationExpiresAt) < new Date()
-    ) {
-      throw new BadRequestException('Invalid or expired verification token');
-    }
-
-    await this.db.client.orm.public.User
-    .where({ id: user.id })
-    .update({
-      emailVerified: true,
-      emailVerificationToken: null,
-      emailVerificationExpiresAt: null,
-    });
+      .where({ id: tokenRow.id })
+      .update({
+        revoked: true,
+      });
   }
 
   async changePassword(
@@ -292,11 +268,64 @@ export class AuthService {
     await this.revokeAllRefreshTokens(user.id);
   }
 
-    async getCurrentUser(userId: number): Promise<AuthUserResponseDto> {
+  async getCurrentUser(userId: number): Promise<AuthUserResponseDto> {
     const user = await this.db.client.orm.public.User.where({ id: userId }).first();
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
     return this.toAuthUserDto(user);
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    const tokenHash = hashVerificationToken(token);
+
+    const user = await this.db.client.orm.public.User.where({
+      emailVerificationToken: tokenHash,
+    }).first();
+
+    if (
+      !user ||
+      !user.emailVerificationExpiresAt ||
+      new Date(user.emailVerificationExpiresAt) < new Date()
+    ) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    await this.db.client.orm.public.User
+      .where({ id: user.id })
+      .update({
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationExpiresAt: null,
+      });
+  }
+
+  async resendVerificationEmail(userId: number): Promise<void> {
+    const user = await this.db.client.orm.public.User.where({ id: userId }).first();
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.emailVerified) {
+      throw new ConflictException('Email is already verified');
+    }
+
+    const { token, tokenHash, expiresAt } = createEmailVerificationToken();
+
+    // Overwrite: any previously sent link stops working immediately.
+    await this.db.client.orm.public.User
+      .where({ id: user.id })
+      .update({
+        emailVerificationToken: tokenHash,
+        emailVerificationExpiresAt: expiresAt,
+      });
+
+    await this.mail.sendVerificationEmail(user.email, token)
+      .catch((err: unknown) => {
+        this.logger.error(`Verification email failed for user ${user.id}`, err);
+        throw new ServiceUnavailableException(
+          'Could not send verification email. Please try again later.',
+        );
+      })
   }
 }

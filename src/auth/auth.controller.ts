@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Get, UseGuards, Req } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth, ApiOkResponse, ApiUnauthorizedResponse, ApiConflictResponse, ApiServiceUnavailableResponse, } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/body/login.dto.js';
 import { RefreshTokenDto } from './dto/body/refresh-token.dto.js';
@@ -12,6 +12,7 @@ import { ForgotPasswordDto } from './dto/body/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/body/reset-password.dto.js';
 import { AuthUserResponseDto } from './dto/response/auth-user-response.dto.js';
 import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
+import { MessageResponseDto } from '../common/dto/response/message-response.dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -43,16 +44,6 @@ export class AuthController {
   @ApiResponse({ status: 204, description: 'Token revoked (or already invalid)' })
   async logout(@Body() dto: RefreshTokenDto) {
     await this.authService.logout(dto.refreshToken);
-  }
-
-  @Post('verify-email')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify email address using the token from the email' })
-  @ApiResponse({ status: 200, description: 'Email verified' })
-  @ApiResponse({ status: 400, description: 'Invalid or expired verification token' })
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
-    await this.authService.verifyEmail(dto.token);
-    return { message: 'Email verified' };
   }
 
   @Post('change-password')
@@ -97,6 +88,31 @@ export class AuthController {
   @ApiOkResponse({ type: AuthUserResponseDto })
   me(@Req() req: { user: JwtPayload }) {
     return this.authService.getCurrentUser(req.user.sub);
+  }
+
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email address using the token from the email' })
+  @ApiResponse({ status: 200, description: 'Email verified' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired verification token' })
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    await this.authService.verifyEmail(dto.token);
+    return { message: 'Email verified' };
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard) 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send a fresh verification email to the current user' })
+  @ApiOkResponse({ type: MessageResponseDto, description: 'Verification email sent; any previous link is invalidated' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiConflictResponse({ description: 'Email is already verified' })
+  @ApiServiceUnavailableResponse({ description: 'Email could not be sent; retry later' })
+  async resendVerification(@Req() req: { user: JwtPayload }): Promise<MessageResponseDto> {
+    await this.authService.resendVerificationEmail(req.user.sub);
+    return { message: 'Verification email sent' };
   }
 
 }
