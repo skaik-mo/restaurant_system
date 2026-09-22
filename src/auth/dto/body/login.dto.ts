@@ -1,5 +1,5 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
-import { NormalizeEmail } from '../../common/transforms/normalize-email.transform.js';
+import { NormalizeEmail } from '../../../common/transforms/normalize-email.transform.js';
 
 export class LoginDto {
   @NormalizeEmail()
