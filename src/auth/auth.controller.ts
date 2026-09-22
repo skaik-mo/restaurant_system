@@ -1,15 +1,17 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, HttpStatus, Post, Get, UseGuards, Req } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
-import { LoginDto } from './dto/login.dto.js';
-import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { LoginDto } from './dto/body/login.dto.js';
+import { RefreshTokenDto } from './dto/body/refresh-token.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
-import { VerifyEmailDto } from './dto/verify-email.dto.js';
+import { VerifyEmailDto } from './dto/body/verify-email.dto.js';
 import { MustChangePasswordGuard } from './guards/must-change-password.guard.js';
 import type { JwtPayload } from './strategies/jwt.strategy.js';
-import { ChangePasswordDto } from './dto/change-password.dto.js';
-import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
-import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { ChangePasswordDto } from './dto/body/change-password.dto.js';
+import { ForgotPasswordDto } from './dto/body/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/body/reset-password.dto.js';
+import { AuthUserResponseDto } from './dto/response/auth-user-response.dto.js';
+import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -19,7 +21,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log in with email and password' })
-  @ApiResponse({ status: 200, description: 'Returns access and refresh tokens' })
+  @ApiOkResponse({ type: TokenPairResponseDto, description: 'Returns access and refresh tokens with the current user' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -28,7 +30,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate refresh token, get new access+refresh pair' })
-  @ApiResponse({ status: 200, description: 'Returns new access and refresh tokens' })
+  @ApiOkResponse({ type: TokenPairResponseDto, description: 'Returns new access and refresh tokens with the current user' })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto.refreshToken);
@@ -85,6 +87,16 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { message: 'Password has been reset. Please log in with your new password.' };
+  }
+
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the current authenticated user' })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  me(@Req() req: { user: JwtPayload }) {
+    return this.authService.getCurrentUser(req.user.sub);
   }
 
 }

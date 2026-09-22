@@ -2,12 +2,14 @@ import { Injectable, UnauthorizedException, BadRequestException, Logger } from '
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { DatabaseService } from '../database/database.service.js';
-import { LoginDto } from './dto/login.dto.js';
+import { LoginDto } from './dto/body/login.dto.js';
 import { buildRefreshToken, hashRefreshToken, parseRefreshToken, verifyRefreshToken } from './utils/refresh-token.util.js';
 import { generateRandomToken } from '../common/utils/random-token.util.js';
 import { PASSWORD_RESET_TTL_MS, hashVerificationToken } from '../common/utils/one-time-token.util.js';
-import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { ChangePasswordDto } from './dto/body/change-password.dto.js';
 import { MailService } from '../mail/mail.service.js';
+import { AuthUserResponseDto } from './dto/response/auth-user-response.dto.js';
+import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
 
 const ACCESS_TOKEN_EXPIRES_IN = '15m';
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -23,6 +25,16 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+interface UserRow {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  password: string;
+  emailVerified: boolean;
+  mustChangePassword: boolean;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,13 +46,14 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
 
-  async login(dto: LoginDto): Promise<TokenPair> {
+  async login(dto: LoginDto): Promise<TokenPairResponseDto> {
     const user = await this.findUserByEmail(dto.email);
     await this.assertPasswordMatches(user.password, dto.password);
-    return this.generateAuthTokens(user.id, user.role, user.email);
+    const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
+    return { ...tokens, user: this.toAuthUserDto(user) };
   }
 
-  private async findUserByEmail(email: string) {
+  private async findUserByEmail(email: string): Promise<UserRow> {
     const user = await this.db.client.orm.public.User.where({ email }).first();
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
@@ -53,6 +66,17 @@ export class AuthService {
     if (!valid) {
       throw new UnauthorizedException('Invalid email or password');
     }
+  }
+
+  private toAuthUserDto(user: UserRow): AuthUserResponseDto {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as AuthUserResponseDto['role'],
+      emailVerified: user.emailVerified,
+      mustChangePassword: user.mustChangePassword,
+    };
   }
 
   private signAccessToken(payload: TokenPayload): string {
@@ -84,7 +108,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async refresh(rawRefreshToken: string): Promise<TokenPair> {
+  async refresh(rawRefreshToken: string): Promise<TokenPairResponseDto> {
     const parsed = parseRefreshToken(rawRefreshToken);
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -124,7 +148,8 @@ export class AuthService {
         revoked: true,
       });
 
-    return this.generateAuthTokens(user.id, user.role, user.email);
+    const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
+    return { ...tokens, user: this.toAuthUserDto(user) };
   }
 
   async logout(rawRefreshToken: string): Promise<void> {
@@ -148,7 +173,9 @@ export class AuthService {
       return;
     }
 
-    await this.db.client.orm.public.RefreshToken.where({ id: tokenRow.id }).update({
+    await this.db.client.orm.public.RefreshToken
+    .where({ id: tokenRow.id })
+    .update({
       revoked: true,
     });
   }
@@ -168,7 +195,9 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification token');
     }
 
-    await this.db.client.orm.public.User.where({ id: user.id }).update({
+    await this.db.client.orm.public.User
+    .where({ id: user.id })
+    .update({
       emailVerified: true,
       emailVerificationToken: null,
       emailVerificationExpiresAt: null,
@@ -263,4 +292,11 @@ export class AuthService {
     await this.revokeAllRefreshTokens(user.id);
   }
 
+    async getCurrentUser(userId: number): Promise<AuthUserResponseDto> {
+    const user = await this.db.client.orm.public.User.where({ id: userId }).first();
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return this.toAuthUserDto(user);
+  }
 }
