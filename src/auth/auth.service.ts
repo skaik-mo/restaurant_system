@@ -136,9 +136,9 @@ export class AuthService {
 
     const claimed = await this.db.client.orm.public.RefreshToken
       .where({ id: tokenRow.id, revoked: false })
-      .update({ revoked: true });
+      .updateAndCount({ revoked: true });
 
-    if (!claimed) {
+    if (claimed !== 1) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -248,8 +248,10 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
+    const tokenHash = hashVerificationToken(token);
+
     const user = await this.db.client.orm.public.User.where({
-      passwordResetToken: hashVerificationToken(token),
+      passwordResetToken: tokenHash,
     }).first();
 
     if (
@@ -260,12 +262,20 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    await this.db.client.orm.public.User.where({ id: user.id }).update({
-      password: await argon2.hash(newPassword),
-      mustChangePassword: false,
-      passwordResetToken: null,
-      passwordResetExpiresAt: null,
-    });
+    const passwordHash = await argon2.hash(newPassword);
+
+     const claimed = await this.db.client.orm.public.User
+      .where({ id: user.id, passwordResetToken: tokenHash })
+      .updateAndCount({
+        password: passwordHash,
+        mustChangePassword: false,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+      });
+
+    if (claimed !== 1) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
 
     await this.revokeAllRefreshTokens(user.id);
   }
@@ -293,13 +303,17 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification token');
     }
 
-    await this.db.client.orm.public.User
-      .where({ id: user.id })
-      .update({
+    const claimed = await this.db.client.orm.public.User
+      .where({ id: user.id, emailVerificationToken: tokenHash })
+      .updateAndCount({
         emailVerified: true,
         emailVerificationToken: null,
         emailVerificationExpiresAt: null,
       });
+
+    if (claimed !== 1) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
   }
 
   async resendVerificationEmail(userId: number): Promise<void> {
