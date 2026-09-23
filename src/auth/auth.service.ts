@@ -128,9 +128,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Expensive check last.
+
     const secretValid = await verifyRefreshToken(tokenRow.tokenHash, parsed.secret);
     if (!secretValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const claimed = await this.db.client.orm.public.RefreshToken
+      .where({ id: tokenRow.id, revoked: false })
+      .update({ revoked: true });
+
+    if (!claimed) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -141,12 +149,6 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-
-    await this.db.client.orm.public.RefreshToken
-      .where({ id: tokenRow.id, revoked: false })
-      .update({
-        revoked: true,
-      });
 
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
     return { ...tokens, user: this.toAuthUserDto(user) };
