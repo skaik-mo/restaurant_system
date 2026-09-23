@@ -4,6 +4,10 @@ import { DatabaseService } from '../database/database.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { MailService } from '../mail/mail.service.js';
 import { createEmailVerificationToken } from '../common/utils/one-time-token.util.js';
+import { isUniqueViolation } from '../common/utils/db-error.util.js';
+
+const USER_EMAIL_UNIQUE_CONSTRAINT = 'user_email_key';
+const EMAIL_TAKEN_MESSAGE = 'A user with this email already exists';
 
 @Injectable()
 export class UsersService {
@@ -35,6 +39,11 @@ export class UsersService {
       emailVerified: false,
       emailVerificationToken,
       emailVerificationExpiresAt,
+    }).catch((err: unknown) => {
+      if (isUniqueViolation(err, USER_EMAIL_UNIQUE_CONSTRAINT)) {
+        throw new ConflictException(EMAIL_TAKEN_MESSAGE);
+      }
+      throw err;
     });
 
     let verificationEmailSent = true;
@@ -62,7 +71,7 @@ export class UsersService {
   private async assertEmailAvailable(email: string): Promise<void> {
     const existing = await this.db.client.orm.public.User.where({ email }).first();
     if (existing) {
-      throw new ConflictException('A user with this email already exists');
+      throw new ConflictException(EMAIL_TAKEN_MESSAGE);
     }
   }
 }
