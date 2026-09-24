@@ -11,7 +11,6 @@ import { MailService } from '../mail/mail.service.js';
 import { AuthUserResponseDto } from './dto/response/auth-user-response.dto.js';
 import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
 
-const ACCESS_TOKEN_EXPIRES_IN = '15m';
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface TokenPayload {
@@ -80,10 +79,8 @@ export class AuthService {
   }
 
   private signAccessToken(payload: TokenPayload): string {
-    return this.jwt.sign(payload, {
-      secret: process.env.JWT_ACCESS_SECRET,
-      expiresIn: ACCESS_TOKEN_EXPIRES_IN,
-    });
+    // Secret and lifetime come from JwtModule config (JWT_ACCESS_SECRET, JWT_ACCESS_EXPIRES_IN)
+    return this.jwt.sign(payload)
   }
 
   private async generateAuthTokens(
@@ -264,7 +261,7 @@ export class AuthService {
 
     const passwordHash = await argon2.hash(newPassword);
 
-     const claimed = await this.db.client.orm.public.User
+    const claimed = await this.db.client.orm.public.User
       .where({ id: user.id, passwordResetToken: tokenHash })
       .updateAndCount({
         password: passwordHash,
