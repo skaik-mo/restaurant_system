@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { throttlerOptions } from './common/throttler/throttler.config.js';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 
 @Module({
@@ -16,6 +17,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
       isGlobal: true,
     }),
     ThrottlerModule.forRoot(throttlerOptions),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     AuthModule,
     UsersModule,

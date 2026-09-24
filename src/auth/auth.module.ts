@@ -8,6 +8,7 @@ import { RolesGuard } from './guards/roles.guard.js';
 import { MustChangePasswordGuard } from './guards/must-change-password.guard.js';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
+import { RefreshTokenCleanupService } from './refresh-token-cleanup.service.js';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { AuthController } from './auth.controller.js';
       }),
     }),
   ],
-  providers: [JwtStrategy, JwtAuthGuard, RolesGuard, MustChangePasswordGuard, AuthService],
+  providers: [JwtStrategy, JwtAuthGuard, RolesGuard, MustChangePasswordGuard, AuthService, RefreshTokenCleanupService],
   controllers: [AuthController],
   exports: [PassportModule, JwtModule, JwtAuthGuard, RolesGuard, MustChangePasswordGuard],
 })
