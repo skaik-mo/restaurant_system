@@ -9,6 +9,7 @@ import { MustChangePasswordGuard } from './guards/must-change-password.guard.js'
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { RefreshTokenCleanupService } from './refresh-token-cleanup.service.js';
+import { parseJwtExpiresIn } from './utils/jwt-expires-in.util.js';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { RefreshTokenCleanupService } from './refresh-token-cleanup.service.js';
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('JWT_ACCESS_SECRET'),
         signOptions: {
-          expiresIn: config.getOrThrow<string>('JWT_ACCESS_EXPIRES_IN') as any,
+          expiresIn: parseJwtExpiresIn(config.getOrThrow<string>('JWT_ACCESS_EXPIRES_IN')),
         },
       }),
     }),
