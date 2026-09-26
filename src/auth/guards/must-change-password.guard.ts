@@ -2,7 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException, } from '
 import { DatabaseService } from '../../database/database.service.js';
 import type { JwtPayload } from '../strategies/jwt.strategy.js';
 
-const EXEMPT_PATHS = ['/auth/change-password', '/auth/logout'];
+const EXEMPT_PATHS = ['/auth/change-password', '/auth/logout', '/users/me'];
 
 @Injectable()
 export class MustChangePasswordGuard implements CanActivate {
