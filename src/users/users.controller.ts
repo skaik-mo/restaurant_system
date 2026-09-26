@@ -10,6 +10,7 @@ import { CreateUserResponseDto } from './dto/response/create-user-response.dto.j
 import type { JwtPayload } from '../auth/strategies/jwt.strategy.js';
 import { UserResponseDto } from './dto/response/user-response.dto.js';
 import { USER_ROLES } from '../common/types/user-role.type.js';
+import { AllowWhenPasswordChangeRequired } from '../auth/decorators/allow-when-password-change-required.decorator.js';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -33,6 +34,7 @@ export class UsersController {
 
     @Get('me')
     @Roles(...USER_ROLES)
+    @AllowWhenPasswordChangeRequired()
     @ApiOperation({ summary: 'Get the current authenticated user' })
     @ApiOkResponse({ type: UserResponseDto })
     @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
