@@ -9,11 +9,13 @@ import { CreateUserDto } from './dto/body/create-user.dto.js';
 import { CreateUserResponseDto } from './dto/response/create-user-response.dto.js';
 import type { JwtPayload } from '../auth/strategies/jwt.strategy.js';
 import { UserResponseDto } from './dto/response/user-response.dto.js';
+import { USER_ROLES } from '../common/types/user-role.type.js';
 
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard, MustChangePasswordGuard)
+@Roles('ADMIN')
 export class UsersController {
     constructor(private readonly users: UsersService) { }
 
@@ -30,6 +32,7 @@ export class UsersController {
     }
 
     @Get('me')
+    @Roles(...USER_ROLES)
     @ApiOperation({ summary: 'Get the current authenticated user' })
     @ApiOkResponse({ type: UserResponseDto })
     @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
