@@ -10,7 +10,6 @@ import { ChangePasswordDto } from './dto/body/change-password.dto.js';
 import { MailService } from '../mail/mail.service.js';
 import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
 import { AuthResponseDto } from './dto/response/auth-response.dto.js';
-import { UserResponseDto } from '../users/dto/response/user-response.dto.js';
 import { toUserResponseDto, type UserRecord } from '../users/user.mapper.js';
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -256,14 +255,6 @@ export class AuthService {
     }
 
     await this.revokeAllRefreshTokens(user.id);
-  }
-
-  async getCurrentUser(userId: number): Promise<UserResponseDto> {
-    const user = await this.db.client.orm.public.User.where({ id: userId }).first();
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-    return toUserResponseDto(user);
   }
 
   async verifyEmail(token: string): Promise<void> {

@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Get, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
 import { ApiOperation, ApiBadRequestResponse, ApiNoContentResponse, ApiTags, ApiBearerAuth, ApiOkResponse, ApiUnauthorizedResponse, ApiConflictResponse, ApiServiceUnavailableResponse, ApiTooManyRequestsResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/body/login.dto.js';
@@ -16,7 +16,6 @@ import { MessageResponseDto } from '../common/dto/response/message-response.dto.
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { RateLimit } from '../common/throttler/rate-limit.decorator.js';
 import { MINUTE_MS, HOUR_MS } from '../common/throttler/throttler.config.js';
-import { UserResponseDto } from '../users/dto/response/user-response.dto.js';
 
 const TOO_MANY_REQUESTS = 'Too many requests; retry later';
 
@@ -102,16 +101,6 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponseDto> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { message: 'Password has been reset. Please log in with your new password.' };
-  }
-
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get the current authenticated user' })
-  @ApiOkResponse({ type: UserResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
-  me(@Req() req: { user: JwtPayload }): Promise<UserResponseDto> {
-    return this.authService.getCurrentUser(req.user.sub);
   }
 
   @Post('verify-email')

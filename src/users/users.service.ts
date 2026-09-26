@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { DatabaseService } from '../database/database.service.js';
 import { MailService } from '../mail/mail.service.js';
@@ -7,6 +7,8 @@ import { isUniqueViolation } from '../common/utils/db-error.util.js';
 import { CreateUserDto } from './dto/body/create-user.dto.js';
 import { CreateUserResponseDto } from './dto/response/create-user-response.dto.js';
 import { toUserResponseDto } from './user.mapper.js';
+import { UserResponseDto } from './dto/response/user-response.dto.js';
+
 const USER_EMAIL_UNIQUE_CONSTRAINT = 'user_email_key';
 const EMAIL_TAKEN_MESSAGE = 'A user with this email already exists';
 
@@ -18,7 +20,6 @@ export class UsersService {
   ) { }
 
   private readonly logger = new Logger(UsersService.name);
-
 
   async create(dto: CreateUserDto): Promise<CreateUserResponseDto> {
     await this.assertEmailAvailable(dto.email);
@@ -65,5 +66,13 @@ export class UsersService {
     if (existing) {
       throw new ConflictException(EMAIL_TAKEN_MESSAGE);
     }
+  }
+
+  async findCurrentUser(userId: number): Promise<UserResponseDto> {
+    const user = await this.db.client.orm.public.User.where({ id: userId }).first();
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return toUserResponseDto(user);
   }
 }
