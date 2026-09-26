@@ -13,10 +13,10 @@ import { ResetPasswordDto } from './dto/body/reset-password.dto.js';
 import { AuthResponseDto } from './dto/response/auth-response.dto.js';
 import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
 import { MessageResponseDto } from '../common/dto/response/message-response.dto.js';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import { RateLimit } from '../common/throttler/rate-limit.decorator.js';
 import { MINUTE_MS, HOUR_MS } from '../common/throttler/throttler.config.js';
 import { AllowWhenPasswordChangeRequired } from './decorators/allow-when-password-change-required.decorator.js';
+import { RateLimitGuard } from '../common/throttler/rate-limit.guard.js';
 
 const TOO_MANY_REQUESTS = 'Too many requests; retry later';
 
@@ -27,7 +27,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 30, ttl: MINUTE_MS }, email: { limit: 5, ttl: MINUTE_MS } })
   @ApiOperation({ summary: 'Log in with email and password' })
   @ApiOkResponse({ type: AuthResponseDto, description: 'Access and refresh tokens with the current user' })
@@ -40,7 +40,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 60, ttl: MINUTE_MS } })
   @ApiOperation({ summary: 'Rotate refresh token, get new access+refresh pair' })
   @ApiOkResponse({ type: AuthResponseDto, description: 'New access and refresh tokens with the current user' })
@@ -82,7 +82,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 10, ttl: 15 * MINUTE_MS }, email: { limit: 3, ttl: HOUR_MS } })
   @ApiOperation({ summary: 'Request a password reset email' })
   @ApiOkResponse({ type: MessageResponseDto, description: 'Always returned, whether or not the email exists' })
@@ -95,7 +95,7 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 10, ttl: 15 * MINUTE_MS } })
   @ApiOperation({ summary: 'Set a new password using the token from the reset email' })
   @ApiOkResponse({ type: MessageResponseDto, description: 'Password reset; all sessions revoked' })
@@ -108,7 +108,7 @@ export class AuthController {
 
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 20, ttl: 15 * MINUTE_MS } })
   @ApiOperation({ summary: 'Verify email address using the token from the email' })
   @ApiOkResponse({ type: MessageResponseDto, description: 'Email verified' })
@@ -121,7 +121,7 @@ export class AuthController {
 
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard, ThrottlerGuard) // order matters: JWT sets req.user first
+  @UseGuards(JwtAuthGuard, RateLimitGuard) // order matters: JWT sets req.user first
   @RateLimit({ user: { limit: 3, ttl: 15 * MINUTE_MS } })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send a fresh verification email to the current user' })

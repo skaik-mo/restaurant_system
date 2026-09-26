@@ -192,16 +192,11 @@ export class AuthService {
   }
 
   private async revokeAllRefreshTokens(userId: number): Promise<void> {
-    const activeTokens = await this.db.client.orm.public.RefreshToken.where({
-      userId,
-      revoked: false,
-    }).all();
-
-    for (const token of activeTokens) {
-      await this.db.client.orm.public.RefreshToken.where({ id: token.id }).update({
+    await this.db.client.orm.public.RefreshToken
+      .where({ userId, revoked: false })
+      .updateAndCount({
         revoked: true,
       });
-    }
   }
 
   async forgotPassword(email: string): Promise<void> {
