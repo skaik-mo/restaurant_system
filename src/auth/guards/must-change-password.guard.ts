@@ -1,37 +1,40 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { DatabaseService } from '../../database/database.service.js';
+import { ALLOW_WHEN_PASSWORD_CHANGE_REQUIRED_KEY } from '../decorators/allow-when-password-change-required.decorator.js';
 import type { JwtPayload } from '../strategies/jwt.strategy.js';
-
-const EXEMPT_PATHS = ['/auth/change-password', '/auth/logout', '/users/me'];
 
 @Injectable()
 export class MustChangePasswordGuard implements CanActivate {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly reflector: Reflector,
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-
-    if (EXEMPT_PATHS.includes(request.route?.path)) {
+    const allowed = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_WHEN_PASSWORD_CHANGE_REQUIRED_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (allowed) {
       return true;
     }
 
+    const request = context.switchToHttp().getRequest();
     const user = request.user as JwtPayload | undefined;
     if (!user) {
       return false;
     }
 
-    const dbUser = await this.db.client.orm.public.User.where({
-      id: user.sub,
-    }).first()
-
+    const dbUser = await this.db.client.orm.public.User
+    .where({ id: user.sub })
+    .first();
     if (!dbUser) {
       return false;
     }
 
     if (dbUser.mustChangePassword) {
-      throw new ForbiddenException(
-        'Password change required before continuing',
-      );
+      throw new ForbiddenException('Password change required before continuing');
     }
 
     return true;

@@ -16,6 +16,7 @@ import { MessageResponseDto } from '../common/dto/response/message-response.dto.
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { RateLimit } from '../common/throttler/rate-limit.decorator.js';
 import { MINUTE_MS, HOUR_MS } from '../common/throttler/throttler.config.js';
+import { AllowWhenPasswordChangeRequired } from './decorators/allow-when-password-change-required.decorator.js';
 
 const TOO_MANY_REQUESTS = 'Too many requests; retry later';
 
@@ -53,6 +54,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
+  @AllowWhenPasswordChangeRequired()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke the given refresh token' })
   @ApiNoContentResponse({ description: 'Token revoked (or already invalid)' })
@@ -65,6 +67,7 @@ export class AuthController {
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, MustChangePasswordGuard)
+  @AllowWhenPasswordChangeRequired()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change own password; revokes all sessions and returns a fresh token pair' })
   @ApiOkResponse({ type: TokenPairResponseDto, description: 'Password changed; new tokens (no user field, by design)' })
