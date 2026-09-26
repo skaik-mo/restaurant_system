@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AuthUserResponseDto } from './auth-user-response.dto.js';
 
 export class TokenPairResponseDto {
   @ApiProperty()
@@ -7,7 +6,4 @@ export class TokenPairResponseDto {
 
   @ApiProperty()
   refreshToken!: string;
-
-  @ApiProperty({ type: AuthUserResponseDto })
-  user!: AuthUserResponseDto;
 }

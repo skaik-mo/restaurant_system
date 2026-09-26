@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsIn, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
-import { NormalizeEmail } from '../../common/transforms/normalize-email.transform.js';
-import { USER_ROLES, type UserRole } from '../../common/types/user-role.type.js';
+import { NormalizeEmail } from '../../../common/transforms/normalize-email.transform.js';
+import { USER_ROLES, type UserRole } from '../../../common/types/user-role.type.js';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'Sara Ahmad' })

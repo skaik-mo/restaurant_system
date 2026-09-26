@@ -8,8 +8,10 @@ import { generateRandomToken } from '../common/utils/random-token.util.js';
 import { PASSWORD_RESET_TTL_MS, hashVerificationToken, createEmailVerificationToken } from '../common/utils/one-time-token.util.js';
 import { ChangePasswordDto } from './dto/body/change-password.dto.js';
 import { MailService } from '../mail/mail.service.js';
-import { AuthUserResponseDto } from './dto/response/auth-user-response.dto.js';
 import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
+import { AuthResponseDto } from './dto/response/auth-response.dto.js';
+import { UserResponseDto } from '../users/dto/response/user-response.dto.js';
+import { toUserResponseDto, type UserRecord } from '../users/user.mapper.js';
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -19,19 +21,8 @@ interface TokenPayload {
   email: string;
 }
 
-export interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-}
-
-interface UserRow {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
+interface UserRow extends UserRecord {
   password: string;
-  emailVerified: boolean;
-  mustChangePassword: boolean;
 }
 
 @Injectable()
@@ -45,11 +36,12 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
 
-  async login(dto: LoginDto): Promise<TokenPairResponseDto> {
+  async login(dto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.findUserByEmail(dto.email);
     await this.assertPasswordMatches(user.password, dto.password);
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
-    return { ...tokens, user: this.toAuthUserDto(user) };
+
+    return { ...tokens, user: toUserResponseDto(user) };
   }
 
   private async findUserByEmail(email: string): Promise<UserRow> {
@@ -67,17 +59,6 @@ export class AuthService {
     }
   }
 
-  private toAuthUserDto(user: UserRow): AuthUserResponseDto {
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role as AuthUserResponseDto['role'],
-      emailVerified: user.emailVerified,
-      mustChangePassword: user.mustChangePassword,
-    };
-  }
-
   private signAccessToken(payload: TokenPayload): string {
     // Secret and lifetime come from JwtModule config (JWT_ACCESS_SECRET, JWT_ACCESS_EXPIRES_IN)
     return this.jwt.sign(payload)
@@ -87,7 +68,7 @@ export class AuthService {
     userId: number,
     role: string,
     email: string,
-  ): Promise<TokenPair> {
+  ): Promise<TokenPairResponseDto> {
     const accessToken = this.signAccessToken({ sub: userId, role, email });
 
     const secret = generateRandomToken();
@@ -105,7 +86,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async refresh(rawRefreshToken: string): Promise<TokenPairResponseDto> {
+  async refresh(rawRefreshToken: string): Promise<AuthResponseDto> {
     const parsed = parseRefreshToken(rawRefreshToken);
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -148,7 +129,7 @@ export class AuthService {
     }
 
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
-    return { ...tokens, user: this.toAuthUserDto(user) };
+    return { ...tokens, user: toUserResponseDto(user) };
   }
 
   async logout(rawRefreshToken: string): Promise<void> {
@@ -182,7 +163,7 @@ export class AuthService {
   async changePassword(
     userId: number,
     dto: ChangePasswordDto,
-  ): Promise<TokenPair> {
+  ): Promise<TokenPairResponseDto> {
     const user = await this.db.client.orm.public.User.where({ id: userId }).first();
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -277,12 +258,12 @@ export class AuthService {
     await this.revokeAllRefreshTokens(user.id);
   }
 
-  async getCurrentUser(userId: number): Promise<AuthUserResponseDto> {
+  async getCurrentUser(userId: number): Promise<UserResponseDto> {
     const user = await this.db.client.orm.public.User.where({ id: userId }).first();
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return this.toAuthUserDto(user);
+    return toUserResponseDto(user);
   }
 
   async verifyEmail(token: string): Promise<void> {
