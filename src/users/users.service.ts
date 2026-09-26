@@ -1,11 +1,12 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { DatabaseService } from '../database/database.service.js';
-import { CreateUserDto } from './dto/create-user.dto.js';
 import { MailService } from '../mail/mail.service.js';
 import { createEmailVerificationToken } from '../common/utils/one-time-token.util.js';
 import { isUniqueViolation } from '../common/utils/db-error.util.js';
-
+import { CreateUserDto } from './dto/body/create-user.dto.js';
+import { CreateUserResponseDto } from './dto/response/create-user-response.dto.js';
+import { toUserResponseDto } from './user.mapper.js';
 const USER_EMAIL_UNIQUE_CONSTRAINT = 'user_email_key';
 const EMAIL_TAKEN_MESSAGE = 'A user with this email already exists';
 
@@ -19,7 +20,7 @@ export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto): Promise<CreateUserResponseDto> {
     await this.assertEmailAvailable(dto.email);
 
     const passwordHash = await argon2.hash(dto.password);
@@ -56,16 +57,7 @@ export class UsersService {
         );
       })
 
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      mustChangePassword: user.mustChangePassword,
-      emailVerified: user.emailVerified,
-      createdAt: user.createdAt,
-      verificationEmailSent,
-    };
+    return { ...toUserResponseDto(user), verificationEmailSent };
   }
 
   private async assertEmailAvailable(email: string): Promise<void> {
