@@ -234,6 +234,10 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
+    if (await argon2.verify(user.password, newPassword)) {
+      throw new BadRequestException('New password must be different from the current password');
+    }
+
     const passwordHash = await argon2.hash(newPassword);
 
     const claimed = await this.db.client.orm.public.User
