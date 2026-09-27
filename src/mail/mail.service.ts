@@ -8,7 +8,7 @@ export class MailService {
     private readonly transporter: Transporter;
     private readonly from: string;
     private readonly frontendUrl: string;
-    private readonly isProduction: boolean;
+    private readonly isDevelopment: boolean;
 
     constructor(private readonly config: ConfigService) {
         const user = this.config.get<string>('SMTP_USER');
@@ -25,7 +25,7 @@ export class MailService {
         this.frontendUrl = this.config
             .getOrThrow<string>('FRONTEND_URL')
             .replace(/\/+$/, '');
-        this.isProduction = this.config.get<string>('NODE_ENV') === 'production';
+        this.isDevelopment = this.config.get<string>('NODE_ENV') === 'development';
     }
 
     async sendVerificationEmail(to: string, token: string): Promise<void> {
@@ -73,7 +73,7 @@ export class MailService {
         } catch (err) {
             this.logger.error(`Failed to send "${opts.subject}" email`, err);
 
-            if (!this.isProduction) {
+            if (this.isDevelopment) {
                 this.logger.warn(`[DEV ONLY] ${opts.devLabel} for ${opts.to}: ${opts.link}`);
             }
 
