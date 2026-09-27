@@ -1,6 +1,5 @@
 import { Injectable, UnauthorizedException, BadRequestException, Logger, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
 import { DatabaseService } from '../database/database.service.js';
 import { LoginDto } from './dto/body/login.dto.js';
 import { buildRefreshToken, hashRefreshToken, parseRefreshToken, verifyRefreshToken } from './utils/refresh-token.util.js';
@@ -10,7 +9,8 @@ import { ChangePasswordDto } from './dto/body/change-password.dto.js';
 import { MailService } from '../mail/mail.service.js';
 import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
 import { AuthResponseDto } from './dto/response/auth-response.dto.js';
-import { toUserResponseDto, type UserRecord } from '../users/user.mapper.js';
+import { toUserResponseDto } from '../users/user.mapper.js';
+import { hashPassword, verifyPassword, verifyPasswordOrDummy } from './utils/password.util.js';
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -18,10 +18,6 @@ interface TokenPayload {
   sub: number;
   role: string;
   email: string;
-}
-
-interface UserRow extends UserRecord {
-  password: string;
 }
 
 @Injectable()
@@ -36,26 +32,14 @@ export class AuthService {
 
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
-    const user = await this.findUserByEmail(dto.email);
-    await this.assertPasswordMatches(user.password, dto.password);
+    const user = await this.db.client.orm.public.User.where({ email: dto.email }).first();
+    const valid = await verifyPasswordOrDummy(user?.password, dto.password);
+    if (!user || !valid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
 
     return { ...tokens, user: toUserResponseDto(user) };
-  }
-
-  private async findUserByEmail(email: string): Promise<UserRow> {
-    const user = await this.db.client.orm.public.User.where({ email }).first();
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-    return user;
-  }
-
-  private async assertPasswordMatches(password: string, plainPassword: string): Promise<void> {
-    const valid = await argon2.verify(password, plainPassword);
-    if (!valid) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
   }
 
   private signAccessToken(payload: TokenPayload): string {
@@ -95,7 +79,7 @@ export class AuthService {
       id: parsed.rowId,
     }).first();
 
-    // Cheap checks first: no argon2 work for missing, replayed, or expired tokens.
+    // Cheap checks first: no expensive hash work for missing, replayed, or expired tokens.
     // Every failure path throws the same generic error on purpose.
     if (
       !tokenRow ||
@@ -168,7 +152,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const currentValid = await argon2.verify(user.password, dto.currentPassword);
+    const currentValid = await verifyPassword(user.password, dto.currentPassword);
     if (!currentValid) {
       throw new UnauthorizedException('Current password is incorrect');
     }
@@ -179,7 +163,7 @@ export class AuthService {
       );
     }
 
-    const newHash = await argon2.hash(dto.newPassword);
+    const newHash = await hashPassword(dto.newPassword);
 
     await this.db.client.orm.public.User.where({ id: user.id }).update({
       password: newHash,
@@ -207,9 +191,10 @@ export class AuthService {
     }
 
     const token = generateRandomToken();
+    const tokenHash = hashVerificationToken(token);
 
     await this.db.client.orm.public.User.where({ id: user.id }).update({
-      passwordResetToken: hashVerificationToken(token),
+      passwordResetToken: tokenHash,
       passwordResetExpiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS).toISOString(),
     });
 
@@ -234,11 +219,11 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    if (await argon2.verify(user.password, newPassword)) {
+    if (await verifyPassword(user.password, newPassword)) {
       throw new BadRequestException('New password must be different from the current password');
     }
 
-    const passwordHash = await argon2.hash(newPassword);
+    const passwordHash = await hashPassword(newPassword);
 
     const claimed = await this.db.client.orm.public.User
       .where({ id: user.id, passwordResetToken: tokenHash })

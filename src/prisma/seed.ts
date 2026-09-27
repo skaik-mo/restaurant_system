@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import * as argon2 from 'argon2';
+import { hashSecret } from '../common/utils/hashing.util.js';
 import { db } from './db.js';
 
 async function main() {
@@ -20,7 +20,7 @@ async function main() {
     return;
   }
 
-  const hashedPassword = await argon2.hash(password);
+  const hashedPassword = await hashSecret(password);
 
   const admin = await db.orm.public.User.create({
     name,

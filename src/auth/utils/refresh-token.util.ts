@@ -1,4 +1,4 @@
-import * as argon2 from 'argon2';
+import { hashSecret, verifySecret } from '../../common/utils/hashing.util.js';
 
 export interface ParsedRefreshToken {
   rowId: number;
@@ -22,9 +22,9 @@ export function parseRefreshToken(token: string): ParsedRefreshToken | null {
 }
 
 export function hashRefreshToken(token: string): Promise<string> {
-  return argon2.hash(token);
+  return hashSecret(token);
 }
 
 export function verifyRefreshToken(hash: string, token: string): Promise<boolean> {
-  return argon2.verify(hash, token);
+  return verifySecret(hash, token);
 }
