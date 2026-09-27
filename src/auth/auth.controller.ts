@@ -66,13 +66,15 @@ export class AuthController {
 
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard, MustChangePasswordGuard)
+  @UseGuards(JwtAuthGuard, RateLimitGuard, MustChangePasswordGuard)
+  @RateLimit({ user: { limit: 5, ttl: 15 * MINUTE_MS } })
   @AllowWhenPasswordChangeRequired()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change own password; revokes all sessions and returns a fresh token pair' })
   @ApiOkResponse({ type: TokenPairResponseDto, description: 'Password changed; new tokens (no user field, by design)' })
   @ApiBadRequestResponse({ description: 'Validation failed, or new password same as current' })
   @ApiUnauthorizedResponse({ description: 'Missing/invalid access token, or current password incorrect' })
+  @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
   changePassword(
     @Req() req: { user: JwtPayload },
     @Body() dto: ChangePasswordDto,
