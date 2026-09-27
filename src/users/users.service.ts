@@ -1,5 +1,4 @@
 import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import * as argon2 from 'argon2';
 import { DatabaseService } from '../database/database.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { createEmailVerificationToken } from '../common/utils/one-time-token.util.js';
@@ -8,6 +7,7 @@ import { CreateUserDto } from './dto/body/create-user.dto.js';
 import { CreateUserResponseDto } from './dto/response/create-user-response.dto.js';
 import { toUserResponseDto } from './user.mapper.js';
 import { UserResponseDto } from './dto/response/user-response.dto.js';
+import { hashPassword } from '../auth/utils/password.util.js';
 
 const USER_EMAIL_UNIQUE_CONSTRAINT = 'user_email_key';
 const EMAIL_TAKEN_MESSAGE = 'A user with this email already exists';
@@ -24,8 +24,8 @@ export class UsersService {
   async create(dto: CreateUserDto): Promise<CreateUserResponseDto> {
     await this.assertEmailAvailable(dto.email);
 
-    const passwordHash = await argon2.hash(dto.password);
-
+    const passwordHash = await hashPassword(dto.password);
+    
     const {
       token: verificationToken,
       tokenHash: emailVerificationToken,
