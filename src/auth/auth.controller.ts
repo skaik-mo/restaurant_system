@@ -99,7 +99,7 @@ export class AuthController {
   @RateLimit({ ip: { limit: 10, ttl: 15 * MINUTE_MS } })
   @ApiOperation({ summary: 'Set a new password using the token from the reset email' })
   @ApiOkResponse({ type: MessageResponseDto, description: 'Password reset; all sessions revoked' })
-  @ApiBadRequestResponse({ description: 'Validation failed, or invalid/expired reset token' })
+  @ApiBadRequestResponse({ description: 'Validation failed, invalid/expired reset token, or new password same as current' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponseDto> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
