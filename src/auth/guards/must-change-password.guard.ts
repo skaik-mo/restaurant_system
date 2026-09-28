@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { DatabaseService } from '../../database/database.service.js';
 import { ALLOW_WHEN_PASSWORD_CHANGE_REQUIRED_KEY } from '../decorators/allow-when-password-change-required.decorator.js';
 import type { JwtPayload } from '../strategies/jwt.strategy.js';
+import { AUTH_ERRORS } from '../auth.messages.js';
 
 @Injectable()
 export class MustChangePasswordGuard implements CanActivate {
@@ -27,14 +28,14 @@ export class MustChangePasswordGuard implements CanActivate {
     }
 
     const dbUser = await this.db.client.orm.public.User
-    .where({ id: user.sub })
-    .first();
+      .where({ id: user.sub })
+      .first();
     if (!dbUser) {
       return false;
     }
 
     if (dbUser.mustChangePassword) {
-      throw new ForbiddenException('Password change required before continuing');
+      throw new ForbiddenException(AUTH_ERRORS.PASSWORD_CHANGE_REQUIRED)
     }
 
     return true;

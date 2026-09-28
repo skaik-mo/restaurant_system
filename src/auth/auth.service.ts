@@ -11,6 +11,8 @@ import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js'
 import { AuthResponseDto } from './dto/response/auth-response.dto.js';
 import { toUserResponseDto } from '../users/user.mapper.js';
 import { hashPassword, verifyPassword, verifyPasswordOrDummy } from './utils/password.util.js';
+import { AUTH_ERRORS } from './auth.messages.js';
+import { COMMON_ERRORS } from '../common/errors/common.errors.js';
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -30,12 +32,11 @@ export class AuthService {
 
   private readonly logger = new Logger(AuthService.name);
 
-
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.db.client.orm.public.User.where({ email: dto.email }).first();
     const valid = await verifyPasswordOrDummy(user?.password, dto.password);
     if (!user || !valid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_CREDENTIALS)
     }
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
 
@@ -72,7 +73,7 @@ export class AuthService {
   async refresh(rawRefreshToken: string): Promise<AuthResponseDto> {
     const parsed = parseRefreshToken(rawRefreshToken);
     if (!parsed) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN)
     }
 
     const tokenRow = await this.db.client.orm.public.RefreshToken.where({
@@ -86,13 +87,13 @@ export class AuthService {
       tokenRow.revoked ||
       new Date(tokenRow.expiresAt) < new Date()
     ) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN)
     }
 
 
     const secretValid = await verifyRefreshToken(tokenRow.tokenHash, parsed.secret);
     if (!secretValid) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN)
     }
 
     const claimed = await this.db.client.orm.public.RefreshToken
@@ -100,7 +101,7 @@ export class AuthService {
       .updateAndCount({ revoked: true });
 
     if (claimed !== 1) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN)
     }
 
     const user = await this.db.client.orm.public.User.where({
@@ -108,7 +109,7 @@ export class AuthService {
     }).first();
 
     if (!user) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN)
     }
 
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
@@ -149,18 +150,16 @@ export class AuthService {
   ): Promise<TokenPairResponseDto> {
     const user = await this.db.client.orm.public.User.where({ id: userId }).first();
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(COMMON_ERRORS.UNAUTHORIZED)
     }
 
     const currentValid = await verifyPassword(user.password, dto.currentPassword);
     if (!currentValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException(AUTH_ERRORS.CURRENT_PASSWORD_INCORRECT)
     }
 
     if (dto.newPassword === dto.currentPassword) {
-      throw new BadRequestException(
-        'New password must be different from the current password',
-      );
+      throw new BadRequestException(AUTH_ERRORS.PASSWORD_UNCHANGED)
     }
 
     const newHash = await hashPassword(dto.newPassword);
@@ -216,11 +215,11 @@ export class AuthService {
       !user.passwordResetExpiresAt ||
       new Date(user.passwordResetExpiresAt) < new Date()
     ) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException(AUTH_ERRORS.INVALID_RESET_TOKEN)
     }
 
     if (await verifyPassword(user.password, newPassword)) {
-      throw new BadRequestException('New password must be different from the current password');
+      throw new BadRequestException(AUTH_ERRORS.PASSWORD_UNCHANGED)
     }
 
     const passwordHash = await hashPassword(newPassword);
@@ -235,7 +234,7 @@ export class AuthService {
       });
 
     if (claimed !== 1) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException(AUTH_ERRORS.INVALID_RESET_TOKEN)
     }
 
     await this.revokeAllRefreshTokens(user.id);
@@ -253,7 +252,7 @@ export class AuthService {
       !user.emailVerificationExpiresAt ||
       new Date(user.emailVerificationExpiresAt) < new Date()
     ) {
-      throw new BadRequestException('Invalid or expired verification token');
+      throw new BadRequestException(AUTH_ERRORS.INVALID_VERIFICATION_TOKEN)
     }
 
     const claimed = await this.db.client.orm.public.User
@@ -265,18 +264,18 @@ export class AuthService {
       });
 
     if (claimed !== 1) {
-      throw new BadRequestException('Invalid or expired verification token');
+      throw new BadRequestException(AUTH_ERRORS.INVALID_VERIFICATION_TOKEN)
     }
   }
 
   async resendVerificationEmail(userId: number): Promise<void> {
     const user = await this.db.client.orm.public.User.where({ id: userId }).first();
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(COMMON_ERRORS.UNAUTHORIZED)
     }
 
     if (user.emailVerified) {
-      throw new ConflictException('Email is already verified');
+      throw new ConflictException(AUTH_ERRORS.EMAIL_ALREADY_VERIFIED)
     }
 
     const { token, tokenHash, expiresAt } = createEmailVerificationToken();
@@ -292,9 +291,7 @@ export class AuthService {
     await this.mail.sendVerificationEmail(user.email, token)
       .catch((err: unknown) => {
         this.logger.error(`Verification email failed for user ${user.id}`, err);
-        throw new ServiceUnavailableException(
-          'Could not send verification email. Please try again later.',
-        );
+        throw new ServiceUnavailableException(AUTH_ERRORS.VERIFICATION_EMAIL_FAILED)
       })
   }
 }

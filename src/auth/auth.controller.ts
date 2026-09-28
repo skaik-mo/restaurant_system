@@ -17,6 +17,7 @@ import { RateLimit } from '../common/throttler/rate-limit.decorator.js';
 import { MINUTE_MS, HOUR_MS } from '../common/throttler/throttler.config.js';
 import { AllowWhenPasswordChangeRequired } from './decorators/allow-when-password-change-required.decorator.js';
 import { RateLimitGuard } from '../common/throttler/rate-limit.guard.js';
+import { AUTH_MESSAGES } from './auth.messages.js';
 
 const TOO_MANY_REQUESTS = 'Too many requests; retry later';
 
@@ -92,7 +93,7 @@ export class AuthController {
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
   async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<MessageResponseDto> {
     await this.authService.forgotPassword(dto.email);
-    return { message: 'If an account exists for that email, a reset link has been sent.' };
+    return { message: AUTH_MESSAGES.FORGOT_PASSWORD_SENT };
   }
 
   @Post('reset-password')
@@ -105,7 +106,7 @@ export class AuthController {
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponseDto> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
-    return { message: 'Password has been reset. Please log in with your new password.' };
+    return { message: AUTH_MESSAGES.PASSWORD_RESET };
   }
 
   @Post('verify-email')
@@ -118,7 +119,7 @@ export class AuthController {
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
   async verifyEmail(@Body() dto: VerifyEmailDto): Promise<MessageResponseDto> {
     await this.authService.verifyEmail(dto.token);
-    return { message: 'Email verified' };
+    return { message: AUTH_MESSAGES.EMAIL_VERIFIED };
   }
 
   @Post('resend-verification')
@@ -134,7 +135,7 @@ export class AuthController {
   @ApiServiceUnavailableResponse({ description: 'Email could not be sent; retry later' })
   async resendVerification(@Req() req: { user: JwtPayload }): Promise<MessageResponseDto> {
     await this.authService.resendVerificationEmail(req.user.sub);
-    return { message: 'Verification email sent' };
+    return { message: AUTH_MESSAGES.VERIFICATION_EMAIL_SENT };
   }
 
 }
