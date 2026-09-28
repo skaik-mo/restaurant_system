@@ -8,9 +8,10 @@ import { CreateUserResponseDto } from './dto/response/create-user-response.dto.j
 import { toUserResponseDto } from './user.mapper.js';
 import { UserResponseDto } from './dto/response/user-response.dto.js';
 import { hashPassword } from '../auth/utils/password.util.js';
+import { USERS_ERRORS } from './users.messages.js';
+import { COMMON_ERRORS } from '../common/errors/common.errors.js';
 
 const USER_EMAIL_UNIQUE_CONSTRAINT = 'user_email_key';
-const EMAIL_TAKEN_MESSAGE = 'A user with this email already exists';
 
 @Injectable()
 export class UsersService {
@@ -25,7 +26,7 @@ export class UsersService {
     await this.assertEmailAvailable(dto.email);
 
     const passwordHash = await hashPassword(dto.password);
-    
+
     const {
       token: verificationToken,
       tokenHash: emailVerificationToken,
@@ -43,7 +44,7 @@ export class UsersService {
       emailVerificationExpiresAt,
     }).catch((err: unknown) => {
       if (isUniqueViolation(err, USER_EMAIL_UNIQUE_CONSTRAINT)) {
-        throw new ConflictException(EMAIL_TAKEN_MESSAGE);
+        throw new ConflictException(USERS_ERRORS.EMAIL_TAKEN);
       }
       throw err;
     });
@@ -64,14 +65,14 @@ export class UsersService {
   private async assertEmailAvailable(email: string): Promise<void> {
     const existing = await this.db.client.orm.public.User.where({ email }).first();
     if (existing) {
-      throw new ConflictException(EMAIL_TAKEN_MESSAGE);
+      throw new ConflictException(USERS_ERRORS.EMAIL_TAKEN)
     }
   }
 
   async findCurrentUser(userId: number): Promise<UserResponseDto> {
     const user = await this.db.client.orm.public.User.where({ id: userId }).first();
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(COMMON_ERRORS.UNAUTHORIZED)
     }
     return toUserResponseDto(user);
   }
