@@ -6,6 +6,7 @@ import type { ErrorDefinition } from './error-definition.js';
 
 // Used when a framework-generated error (guard, throttler, router) has no code of its own.
 const DEFAULT_ERRORS: Readonly<Record<number, ErrorDefinition>> = {
+    400: COMMON_ERRORS.BAD_REQUEST,
     401: COMMON_ERRORS.UNAUTHORIZED,
     403: COMMON_ERRORS.FORBIDDEN,
     404: COMMON_ERRORS.NOT_FOUND,
@@ -61,7 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         return {
             statusCode: status,
-            code: code ?? fallback?.code ?? (status === 400 ? COMMON_ERRORS.BAD_REQUEST.code : COMMON_ERRORS.HTTP_ERROR.code),
+            code: code ?? fallback?.code ?? COMMON_ERRORS.HTTP_ERROR.code,
             message: code === undefined && fallback ? fallback.message : message,
             error: STATUS_CODES[status] ?? 'Error',
         };
