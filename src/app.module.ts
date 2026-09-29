@@ -8,7 +8,8 @@ import { throttlerOptions } from './common/throttler/throttler.config.js';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { HealthModule } from './health/health.module.js';
-
+import { APP_FILTER } from '@nestjs/core';
+import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 
 @Module({
   imports: [
@@ -24,6 +25,6 @@ import { HealthModule } from './health/health.module.js';
     HealthModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],
 })
 export class AppModule { }
