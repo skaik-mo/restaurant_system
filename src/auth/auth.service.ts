@@ -13,6 +13,7 @@ import { toUserResponseDto } from '../users/user.mapper.js';
 import { hashPassword, verifyPassword, verifyPasswordOrDummy } from './utils/password.util.js';
 import { AUTH_ERRORS } from './auth.messages.js';
 import { COMMON_ERRORS } from '../common/errors/common.errors.js';
+import { ChangePasswordResponseDto } from './dto/response/change-password-response.dto.js';
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -40,7 +41,7 @@ export class AuthService {
     }
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
 
-    return { ...tokens, user: toUserResponseDto(user) };
+    return { tokens, user: toUserResponseDto(user) }
   }
 
   private signAccessToken(payload: TokenPayload): string {
@@ -113,7 +114,7 @@ export class AuthService {
     }
 
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
-    return { ...tokens, user: toUserResponseDto(user) };
+    return { tokens, user: toUserResponseDto(user) }
   }
 
   async logout(rawRefreshToken: string): Promise<void> {
@@ -147,7 +148,7 @@ export class AuthService {
   async changePassword(
     userId: number,
     dto: ChangePasswordDto,
-  ): Promise<TokenPairResponseDto> {
+  ): Promise<ChangePasswordResponseDto> {
     const user = await this.db.client.orm.public.User.where({ id: userId }).first();
     if (!user) {
       throw new UnauthorizedException(COMMON_ERRORS.UNAUTHORIZED)
@@ -171,7 +172,7 @@ export class AuthService {
 
     await this.revokeAllRefreshTokens(user.id);
 
-    return this.generateAuthTokens(user.id, user.role, user.email);
+    return { tokens: await this.generateAuthTokens(user.id, user.role, user.email) }
   }
 
   private async revokeAllRefreshTokens(userId: number): Promise<void> {
