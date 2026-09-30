@@ -1,10 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
-import { ValidationPipe, BadRequestException, ValidationError } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
-import { COMMON_ERRORS } from './common/errors/common.errors.js';
+import { toValidationException } from './common/errors/validation-errors.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -21,11 +21,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      exceptionFactory: (errors: ValidationError[]) =>
-        new BadRequestException({
-          code: COMMON_ERRORS.VALIDATION_FAILED.code,
-          message: errors.flatMap((e) => Object.values(e.constraints ?? {})),
-        }),
+      exceptionFactory: toValidationException,
     }),
   );
 

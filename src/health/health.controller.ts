@@ -1,7 +1,9 @@
 import { Controller, Get, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
 import { DatabaseService } from '../database/database.service.js';
 import { HealthResponseDto } from './dto/response/health-response.dto.js';
+import { EnvelopeResponse } from '../common/http/envelope-response.decorator.js';
+import { HEALTH_ERRORS } from './health.messages.js';
 
 const DB_CHECK_TIMEOUT_MS = 2_000 // 2 seconds
 
@@ -18,20 +20,23 @@ export class HealthController {
    */
   @Get()
   @ApiOperation({ summary: 'Health check (app + database)' })
-  @ApiOkResponse({ type: HealthResponseDto })
-  @ApiServiceUnavailableResponse({ type: HealthResponseDto, description: 'Database unreachable' })
+  @EnvelopeResponse({ status: 200, type: HealthResponseDto, description: 'Application and database are healthy' })
+  @ApiServiceUnavailableResponse({ description: 'Database unreachable' })
   async check(): Promise<HealthResponseDto> {
+    let timer: NodeJS.Timeout | undefined;
     try {
       await Promise.race([
         this.db.client.orm.public.User.where({ id: -1 }).first(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('database check timed out')), DB_CHECK_TIMEOUT_MS),
-        ),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('database check timed out')), DB_CHECK_TIMEOUT_MS);
+        }),
       ]);
       return { status: 'ok' };
     } catch (err: unknown) {
       this.logger.warn(`Health check failed: ${err instanceof Error ? err.message : String(err)}`);
-      throw new ServiceUnavailableException({ status: 'error' });
+      throw new ServiceUnavailableException(HEALTH_ERRORS.DATABASE_UNAVAILABLE);
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

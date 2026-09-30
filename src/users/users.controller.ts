@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiBadRequestResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConflictResponse, ApiForbiddenResponse, ApiBadRequestResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { MustChangePasswordGuard } from '../auth/guards/must-change-password.guard.js';
@@ -11,6 +11,8 @@ import type { JwtPayload } from '../auth/strategies/jwt.strategy.js';
 import { UserResponseDto } from './dto/response/user-response.dto.js';
 import { USER_ROLES } from '../common/types/user-role.type.js';
 import { AllowWhenPasswordChangeRequired } from '../auth/decorators/allow-when-password-change-required.decorator.js';
+import { EnvelopeResponse } from '../common/http/envelope-response.decorator.js';
+import { USERS_MESSAGES } from './users.messages.js';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -23,7 +25,7 @@ export class UsersController {
     @Post()
     @Roles('ADMIN')
     @ApiOperation({ summary: 'Create a user (admin only)' })
-    @ApiCreatedResponse({ type: CreateUserResponseDto })
+    @EnvelopeResponse({ status: 201, type: CreateUserResponseDto, message: USERS_MESSAGES.CREATED, description: 'User created; verificationEmailSent reports whether the email went out' })
     @ApiBadRequestResponse({ description: 'Validation failed' })
     @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
     @ApiForbiddenResponse({ description: 'Caller is not an admin, or must change password first' })
@@ -36,7 +38,7 @@ export class UsersController {
     @Roles(...USER_ROLES)
     @AllowWhenPasswordChangeRequired()
     @ApiOperation({ summary: 'Get the current authenticated user' })
-    @ApiOkResponse({ type: UserResponseDto })
+    @EnvelopeResponse({ status: 200, type: UserResponseDto, description: 'The current authenticated user' })
     @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
     me(@Req() req: { user: JwtPayload }): Promise<UserResponseDto> {
         return this.users.findCurrentUser(req.user.sub);

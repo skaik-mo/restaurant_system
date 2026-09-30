@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
-import { ApiOperation, ApiBadRequestResponse, ApiNoContentResponse, ApiTags, ApiBearerAuth, ApiOkResponse, ApiUnauthorizedResponse, ApiConflictResponse, ApiServiceUnavailableResponse, ApiTooManyRequestsResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiBadRequestResponse, ApiNoContentResponse, ApiTags, ApiBearerAuth, ApiUnauthorizedResponse, ApiConflictResponse, ApiServiceUnavailableResponse, ApiTooManyRequestsResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/body/login.dto.js';
 import { RefreshTokenDto } from './dto/body/refresh-token.dto.js';
@@ -11,15 +11,15 @@ import { ChangePasswordDto } from './dto/body/change-password.dto.js';
 import { ForgotPasswordDto } from './dto/body/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/body/reset-password.dto.js';
 import { AuthResponseDto } from './dto/response/auth-response.dto.js';
-import { TokenPairResponseDto } from './dto/response/token-pair-response.dto.js';
-import { MessageResponseDto } from '../common/dto/response/message-response.dto.js';
 import { RateLimit } from '../common/throttler/rate-limit.decorator.js';
 import { MINUTE_MS, HOUR_MS } from '../common/throttler/throttler.config.js';
 import { AllowWhenPasswordChangeRequired } from './decorators/allow-when-password-change-required.decorator.js';
 import { RateLimitGuard } from '../common/throttler/rate-limit.guard.js';
 import { AUTH_MESSAGES } from './auth.messages.js';
+import { EnvelopeResponse } from '../common/http/envelope-response.decorator.js';
+import { ChangePasswordResponseDto } from './dto/response/change-password-response.dto.js';
 
-const TOO_MANY_REQUESTS = 'Too many requests; retry later';
+const TOO_MANY_REQUESTS = 'Too many requests, retry later';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -31,7 +31,7 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 30, ttl: MINUTE_MS }, email: { limit: 5, ttl: MINUTE_MS } })
   @ApiOperation({ summary: 'Log in with email and password' })
-  @ApiOkResponse({ type: AuthResponseDto, description: 'Access and refresh tokens with the current user' })
+  @EnvelopeResponse({ status: 200, type: AuthResponseDto, description: 'Access and refresh tokens with the current user' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
@@ -44,7 +44,7 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 60, ttl: MINUTE_MS } })
   @ApiOperation({ summary: 'Rotate refresh token, get new access+refresh pair' })
-  @ApiOkResponse({ type: AuthResponseDto, description: 'New access and refresh tokens with the current user' })
+  @EnvelopeResponse({ status: 200, type: AuthResponseDto, description: 'New access and refresh tokens with the current user' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiUnauthorizedResponse({ description: 'Invalid or expired refresh token' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
@@ -72,14 +72,14 @@ export class AuthController {
   @AllowWhenPasswordChangeRequired()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change own password; revokes all sessions and returns a fresh token pair' })
-  @ApiOkResponse({ type: TokenPairResponseDto, description: 'Password changed; new tokens (no user field, by design)' })
+  @EnvelopeResponse({ status: 200, type: ChangePasswordResponseDto, description: 'Password changed; new tokens (no user, by design)' })
   @ApiBadRequestResponse({ description: 'Validation failed, or new password same as current' })
   @ApiUnauthorizedResponse({ description: 'Missing/invalid access token, or current password incorrect' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
   changePassword(
     @Req() req: { user: JwtPayload },
     @Body() dto: ChangePasswordDto,
-  ): Promise<TokenPairResponseDto> {
+  ): Promise<ChangePasswordResponseDto> {
     return this.authService.changePassword(req.user.sub, dto);
   }
 
@@ -88,12 +88,11 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 10, ttl: 15 * MINUTE_MS }, email: { limit: 3, ttl: HOUR_MS } })
   @ApiOperation({ summary: 'Request a password reset email' })
-  @ApiOkResponse({ type: MessageResponseDto, description: 'Always returned, whether or not the email exists' })
+  @EnvelopeResponse({ status: 200, message: AUTH_MESSAGES.FORGOT_PASSWORD_SENT, description: 'Always returned, whether or not the email exists' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
-  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<MessageResponseDto> {
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
     await this.authService.forgotPassword(dto.email);
-    return { message: AUTH_MESSAGES.FORGOT_PASSWORD_SENT };
   }
 
   @Post('reset-password')
@@ -101,12 +100,11 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 10, ttl: 15 * MINUTE_MS } })
   @ApiOperation({ summary: 'Set a new password using the token from the reset email' })
-  @ApiOkResponse({ type: MessageResponseDto, description: 'Password reset; all sessions revoked' })
+  @EnvelopeResponse({ status: 200, message: AUTH_MESSAGES.PASSWORD_RESET, description: 'Password reset; all sessions revoked' })
   @ApiBadRequestResponse({ description: 'Validation failed, invalid/expired reset token, or new password same as current' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
-  async resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponseDto> {
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
-    return { message: AUTH_MESSAGES.PASSWORD_RESET };
   }
 
   @Post('verify-email')
@@ -114,12 +112,11 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ ip: { limit: 20, ttl: 15 * MINUTE_MS } })
   @ApiOperation({ summary: 'Verify email address using the token from the email' })
-  @ApiOkResponse({ type: MessageResponseDto, description: 'Email verified' })
+  @EnvelopeResponse({ status: 200, message: AUTH_MESSAGES.EMAIL_VERIFIED, description: 'Email verified' })
   @ApiBadRequestResponse({ description: 'Validation failed, or invalid/expired verification token' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
-  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<MessageResponseDto> {
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<void> {
     await this.authService.verifyEmail(dto.token);
-    return { message: AUTH_MESSAGES.EMAIL_VERIFIED };
   }
 
   @Post('resend-verification')
@@ -128,14 +125,13 @@ export class AuthController {
   @RateLimit({ user: { limit: 3, ttl: 15 * MINUTE_MS } })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send a fresh verification email to the current user' })
-  @ApiOkResponse({ type: MessageResponseDto, description: 'Verification email sent; any previous link is invalidated' })
+  @EnvelopeResponse({ status: 200, message: AUTH_MESSAGES.VERIFICATION_EMAIL_SENT, description: 'Verification email sent; any previous link is invalidated' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   @ApiConflictResponse({ description: 'Email is already verified' })
   @ApiTooManyRequestsResponse({ description: TOO_MANY_REQUESTS })
   @ApiServiceUnavailableResponse({ description: 'Email could not be sent; retry later' })
-  async resendVerification(@Req() req: { user: JwtPayload }): Promise<MessageResponseDto> {
+  async resendVerification(@Req() req: { user: JwtPayload }): Promise<void> {
     await this.authService.resendVerificationEmail(req.user.sub);
-    return { message: AUTH_MESSAGES.VERIFICATION_EMAIL_SENT };
   }
 
 }

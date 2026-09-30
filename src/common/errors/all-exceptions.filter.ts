@@ -4,7 +4,7 @@ import { STATUS_CODES } from 'node:http';
 import { COMMON_ERRORS } from './common.errors.js';
 import type { ErrorDefinition } from './error-definition.js';
 
-// Used when a framework-generated error (guard, throttler, router) has no code of its own.
+// Used when a framework-generated error (guard, throttler, router, body parser) has no code of its own.
 const DEFAULT_ERRORS: Readonly<Record<number, ErrorDefinition>> = {
     400: COMMON_ERRORS.BAD_REQUEST,
     401: COMMON_ERRORS.UNAUTHORIZED,
@@ -13,11 +13,7 @@ const DEFAULT_ERRORS: Readonly<Record<number, ErrorDefinition>> = {
     429: COMMON_ERRORS.RATE_LIMITED,
 };
 
-/**
- * Every error response becomes { statusCode, code, message, error }.
- * Response bodies without a `message` (e.g. /health's { status: 'error' })
- * are not in this format and pass through unchanged.
- */
+// Every error response becomes { success: false, error: { code, message, details? } }
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
     private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -34,37 +30,35 @@ export class AllExceptionsFilter implements ExceptionFilter {
                 exception instanceof Error ? exception.message : String(exception),
                 exception instanceof Error ? exception.stack : undefined,
             );
-            httpAdapter.reply(
-                response,
-                {
-                    statusCode: 500,
-                    code: COMMON_ERRORS.INTERNAL.code,
-                    message: COMMON_ERRORS.INTERNAL.message,
-                    error: STATUS_CODES[500],
-                },
-                500,
-            );
+            httpAdapter.reply(response, this.body(COMMON_ERRORS.INTERNAL), 500);
             return;
         }
 
         const status = exception.getStatus();
-        httpAdapter.reply(response, this.normalize(status, exception.getResponse()), status);
+        httpAdapter.reply(response, this.fromHttpException(status, exception.getResponse()), status);
     }
 
-    private normalize(status: number, raw: string | object): unknown {
-        const body = typeof raw === 'string' ? { message: raw } : raw;
-        if (!('message' in body)) {
-            return body;
+    private fromHttpException(status: number, raw: string | object) {
+        const own = typeof raw === 'object' ? (raw as { code?: unknown; message?: unknown; details?: unknown }) : {};
+
+        // Thrown by our code (or the validation factory): carries its own code and message.
+        if (typeof own.code === 'string' && typeof own.message === 'string') {
+            return this.body({ code: own.code, message: own.message }, own.details);
         }
 
-        const { code, message } = body as { code?: string; message: string | string[] };
-        const fallback = DEFAULT_ERRORS[status];
+        // Framework-generated: replace the framework's text with a controlled message.
+        return this.body(
+            DEFAULT_ERRORS[status] ?? {
+                code: COMMON_ERRORS.HTTP_ERROR.code,
+                message: STATUS_CODES[status] ?? COMMON_ERRORS.HTTP_ERROR.message,
+            },
+        );
+    }
 
+    private body(error: ErrorDefinition, details?: unknown) {
         return {
-            statusCode: status,
-            code: code ?? fallback?.code ?? COMMON_ERRORS.HTTP_ERROR.code,
-            message: code === undefined && fallback ? fallback.message : message,
-            error: STATUS_CODES[status] ?? 'Error',
-        };
+            success: false,
+            error: { code: error.code, message: error.message, ...(details !== undefined && { details }) },
+        }
     }
 }
