@@ -1,28 +1,29 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { USER_ROLES, type UserRole } from '../../../common/types/user-role.type.js';
+import { EXAMPLES } from '../../../common/swagger/api-examples.js';
 
 export class UserResponseDto {
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: EXAMPLES.userId })
   id!: number;
 
-  @ApiProperty({ example: 'Sara Ahmad' })
+  @ApiProperty({ example: EXAMPLES.name })
   name!: string;
 
-  @ApiProperty({ example: 'sara@restaurant.com' })
+  @ApiProperty({ example: EXAMPLES.email })
   email!: string;
 
-  @ApiProperty({ enum: USER_ROLES })
+  @ApiProperty({ enum: USER_ROLES, example: EXAMPLES.role })
   role!: UserRole;
 
   @ApiProperty({ example: false })
   emailVerified!: boolean;
 
-  @ApiProperty({ example: true })
+  @ApiProperty({ example: true, description: 'True until the user sets their own password' })
   mustChangePassword!: boolean;
 
-  @ApiProperty({ example: '2026-09-21T15:00:00.000Z', description: 'ISO 8601' })
+  @ApiProperty({ example: EXAMPLES.timestamp, description: 'ISO 8601' })
   createdAt!: string;
 
-  @ApiProperty({ example: '2026-09-21T15:00:00.000Z', description: 'ISO 8601' })
+  @ApiProperty({ example: EXAMPLES.timestamp, description: 'ISO 8601' })
   updatedAt!: string;
 }
