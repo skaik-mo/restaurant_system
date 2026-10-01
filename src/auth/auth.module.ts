@@ -10,6 +10,7 @@ import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { RefreshTokenCleanupService } from './refresh-token-cleanup.service.js';
 import { parseJwtExpiresIn } from './utils/jwt-expires-in.util.js';
+import { getJwtAccessSecret, JWT_ALGORITHM } from './utils/jwt-secret.util.js';
 
 @Module({
   imports: [
@@ -18,8 +19,9 @@ import { parseJwtExpiresIn } from './utils/jwt-expires-in.util.js';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        secret: getJwtAccessSecret(config),
         signOptions: {
+          algorithm: JWT_ALGORITHM,
           expiresIn: parseJwtExpiresIn(config.getOrThrow<string>('JWT_ACCESS_EXPIRES_IN')),
         },
       }),
@@ -29,4 +31,4 @@ import { parseJwtExpiresIn } from './utils/jwt-expires-in.util.js';
   controllers: [AuthController],
   exports: [PassportModule, JwtModule, JwtAuthGuard, RolesGuard, MustChangePasswordGuard],
 })
-export class AuthModule {}
+export class AuthModule { }

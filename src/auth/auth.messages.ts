@@ -18,3 +18,8 @@ export const AUTH_MESSAGES = {
   FORGOT_PASSWORD_SENT: 'If an account exists for that email, a reset link has been sent.',
   PASSWORD_RESET: 'Password has been reset. Please log in with your new password.',
 } as const;
+
+export const AUTH_CONFIG_ERRORS = {
+  WEAK_JWT_SECRET: (minLength: number) =>
+    `JWT_ACCESS_SECRET must be at least ${minLength} random characters and not the .env.example placeholder`,
+} as const;

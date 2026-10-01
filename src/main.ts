@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { toValidationException } from './common/errors/validation-errors.js';
+import helmet from 'helmet';
+import { isSwaggerEnabled } from './common/utils/swagger-enabled.util.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -25,17 +27,23 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Restaurant QR Ordering API')
-    .setDescription('QR ordering + KDS backend API docs')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+  const swaggerEnabled = isSwaggerEnabled(configService);
+  app.use(helmet(swaggerEnabled ? { contentSecurityPolicy: false } : {}));
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
-    swaggerOptions: { persistAuthorization: true },
-  });
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle('Restaurant QR Ordering API')
+      .setDescription('QR ordering + KDS backend API docs')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+    new Logger('Bootstrap').log('Swagger UI enabled at /api');
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 }
