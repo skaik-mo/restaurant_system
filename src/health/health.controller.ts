@@ -1,9 +1,10 @@
 import { Controller, Get, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { ApiOperation, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DatabaseService } from '../database/database.service.js';
 import { HealthResponseDto } from './dto/response/health-response.dto.js';
 import { EnvelopeResponse } from '../common/http/envelope-response.decorator.js';
 import { HEALTH_ERRORS } from './health.messages.js';
+import { ApiErrorResponse } from '../common/swagger/api-error-response.decorator.js';
 
 const DB_CHECK_TIMEOUT_MS = 2_000 // 2 seconds
 
@@ -21,7 +22,7 @@ export class HealthController {
   @Get()
   @ApiOperation({ summary: 'Health check (app + database)' })
   @EnvelopeResponse({ status: 200, type: HealthResponseDto, description: 'Application and database are healthy' })
-  @ApiServiceUnavailableResponse({ description: 'Database unreachable' })
+  @ApiErrorResponse(503, HEALTH_ERRORS.DATABASE_UNAVAILABLE)
   async check(): Promise<HealthResponseDto> {
     let timer: NodeJS.Timeout | undefined;
     try {
