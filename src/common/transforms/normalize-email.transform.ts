@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
+import { trimAndLowercase } from '../utils/text.util.js';
 
 export const NormalizeEmail = () =>
     Transform(({ value }) =>
-        typeof value === 'string' ? value.trim().toLowerCase() : value,
-    );
+        (typeof value === 'string' ? trimAndLowercase(value) : value))

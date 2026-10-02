@@ -1,10 +1,11 @@
 import 'dotenv/config';
 import { hashSecret } from '../common/utils/hashing.util.js';
 import { db } from './db.js';
+import { trimAndLowercase } from '../common/utils/text.util.js';
 
 async function main() {
   const name = process.env['ADMIN_NAME'];
-  const email = process.env['ADMIN_EMAIL'];
+  const email = process.env['ADMIN_EMAIL'] ? trimAndLowercase(process.env['ADMIN_EMAIL']) : undefined;
   const password = process.env['ADMIN_PASSWORD'];
 
   if (!name || !email || !password) {
