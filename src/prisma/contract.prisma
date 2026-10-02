@@ -36,18 +36,22 @@ model RefreshToken {
 
 model Category {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
+  name      String
+  sortOrder Int      @default(0)
   menuItems MenuItem[]
   createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
-}
 
+  @@index(expression: "lower(name)", unique: true, name: "category_name_lower")
+}
 model MenuItem {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
-  price       Decimal
+  price Numeric(10, 2)
   imageUrl   String?
+  sortOrder   Int      @default(0)
+  isAvailable Boolean  @default(true)
   categoryId  Int
   category    Category @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
