@@ -95,7 +95,7 @@ model Order {
   customerName String?
   source       OrderSource
   type         OrderType
-  totalPrice   Decimal
+  totalPrice   Numeric(10, 2)
   userId       Int?
   user         User?                      @relation(fields:[userId], references:[id])
   tableId      Int?
@@ -108,12 +108,13 @@ model Order {
 
 model OrderItem {
   id               Int                        @id @default(autoincrement())
+  itemName         String
   quantity         Int
-  priceAtOrderTime Decimal
+  priceAtOrderTime Numeric(10, 2)
   orderId          Int
   order            Order                      @relation(fields:[orderId], references:[id])
-  menuItemId       Int
-  menuItem         MenuItem                   @relation(fields:[menuItemId], references:[id])
+  menuItemId       Int?
+  menuItem         MenuItem?                   @relation(fields:[menuItemId], references:[id], onDelete: SetNull)
   createdAt        TimestamptzString          @default(now())
   updatedAt        temporal.updatedAtString()
 }
