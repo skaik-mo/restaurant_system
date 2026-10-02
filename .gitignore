@@ -67,3 +67,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Prisma generated contract files
 src/prisma/contract.json
 src/prisma/contract.d.ts
+printf '\n# Dev-only: db update snapshots and refs. Remove this line when real migrations are adopted for production\nmigrations/\n' >> .gitignore
+# Dev-only: db update snapshots and refs. Remove this line when real migrations are adopted for production
+migrations/
