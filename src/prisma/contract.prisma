@@ -1,5 +1,4 @@
 // use prisma-8
-
 enum UserRole {
   ADMIN
   KITCHEN
@@ -7,55 +6,56 @@ enum UserRole {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      UserRole
-  mustChangePassword         Boolean  @default(true)
-  emailVerified              Boolean  @default(false)
+  id                         Int                        @id @default(autoincrement())
+  name                       String
+  email                      String                     @unique
+  password                   String
+  role                       UserRole
+  mustChangePassword         Boolean                    @default(true)
+  emailVerified              Boolean                    @default(false)
   emailVerificationToken     String?
   emailVerificationExpiresAt TimestamptzString?
   passwordResetToken         String?
   passwordResetExpiresAt     TimestamptzString?
-  orders        Order[]
-  refreshTokens RefreshToken[]
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
+  orders                     Order[]
+  refreshTokens              RefreshToken[]
+  createdAt                  TimestamptzString          @default(now())
+  updatedAt                  temporal.updatedAtString()
 }
 
 model RefreshToken {
-  id        Int      @id @default(autoincrement())
+  id        Int               @id @default(autoincrement())
   tokenHash String
   expiresAt TimestamptzString
-  revoked   Boolean  @default(false)
+  revoked   Boolean           @default(false)
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields:[userId], references:[id], onDelete: Cascade)
   createdAt TimestamptzString @default(now())
 }
 
 model Category {
-  id        Int      @id @default(autoincrement())
+  id        Int                        @id @default(autoincrement())
   name      String
-  sortOrder Int      @default(0)
+  sortOrder Int                        @default(0)
   menuItems MenuItem[]
-  createdAt TimestamptzString @default(now())
+  createdAt TimestamptzString          @default(now())
   updatedAt temporal.updatedAtString()
 
   @@index(expression: "lower(name)", unique: true, name: "category_name_lower")
 }
+
 model MenuItem {
-  id          Int      @id @default(autoincrement())
+  id          Int                        @id @default(autoincrement())
   name        String
   description String?
-  price Numeric(10, 2)
-  imageUrl   String?
-  sortOrder   Int      @default(0)
-  isAvailable Boolean  @default(true)
+  price       Numeric(10, 2)
+  imageUrl    String?
+  sortOrder   Int                        @default(0)
+  isAvailable Boolean                    @default(true)
   categoryId  Int
-  category    Category @relation(fields: [categoryId], references: [id])
+  category    Category                   @relation(fields:[categoryId], references:[id])
   orderItems  OrderItem[]
-  createdAt   TimestamptzString @default(now())
+  createdAt   TimestamptzString          @default(now())
   updatedAt   temporal.updatedAtString()
 }
 
@@ -65,11 +65,11 @@ enum TableStatus {
 }
 
 model Table {
-  id        Int      @id @default(autoincrement())
-  number    Int      @unique
-  status    TableStatus @default(AVAILABLE)
+  id        Int                        @id @default(autoincrement())
+  number    Int                        @unique
+  status    TableStatus                @default(AVAILABLE)
   orders    Order[]
-  createdAt TimestamptzString @default(now())
+  createdAt TimestamptzString          @default(now())
   updatedAt temporal.updatedAtString()
 }
 
@@ -91,29 +91,29 @@ enum OrderStatus {
 }
 
 model Order {
-  id          Int        @id @default(autoincrement())
+  id           Int                        @id @default(autoincrement())
   customerName String?
-  source      OrderSource
-  type        OrderType
-  totalPrice  Decimal
-  userId      Int?
-  user        User?      @relation(fields: [userId], references: [id])
-  tableId     Int?
-  table       Table?      @relation(fields: [tableId], references: [id])
-  items       OrderItem[]
-  status      OrderStatus @default(PENDING)
-  createdAt   TimestamptzString   @default(now())
-  updatedAt   temporal.updatedAtString()
+  source       OrderSource
+  type         OrderType
+  totalPrice   Decimal
+  userId       Int?
+  user         User?                      @relation(fields:[userId], references:[id])
+  tableId      Int?
+  table        Table?                     @relation(fields:[tableId], references:[id])
+  items        OrderItem[]
+  status       OrderStatus                @default(PENDING)
+  createdAt    TimestamptzString          @default(now())
+  updatedAt    temporal.updatedAtString()
 }
 
 model OrderItem {
-  id        Int      @id @default(autoincrement())
-  quantity  Int
-  priceAtOrderTime Decimal  
-  orderId   Int
-  order     Order    @relation(fields: [orderId], references: [id])
-  menuItemId Int
-  menuItem  MenuItem @relation(fields: [menuItemId], references: [id])
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
+  id               Int                        @id @default(autoincrement())
+  quantity         Int
+  priceAtOrderTime Decimal
+  orderId          Int
+  order            Order                      @relation(fields:[orderId], references:[id])
+  menuItemId       Int
+  menuItem         MenuItem                   @relation(fields:[menuItemId], references:[id])
+  createdAt        TimestamptzString          @default(now())
+  updatedAt        temporal.updatedAtString()
 }
