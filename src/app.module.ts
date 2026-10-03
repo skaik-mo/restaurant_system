@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module.js';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { ResponseEnvelopeInterceptor } from './common/http/response-envelope.interceptor.js';
+import { CategoriesModule } from './categories/categories.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ResponseEnvelopeInterceptor } from './common/http/response-envelope.int
     UsersModule,
     MailModule,
     HealthModule,
+    CategoriesModule,
   ],
   controllers: [],
   providers: [

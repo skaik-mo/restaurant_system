@@ -1,11 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsIn, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
-import { NormalizeEmail } from '../../../common/transforms/normalize-email.transform.js';
+import { Trim } from '../../../common/transforms/trim.transform.js';
 import { USER_ROLES, type UserRole } from '../../../common/types/user-role.type.js';
 import { EXAMPLES } from '../../../common/swagger/api-examples.js';
+import { NormalizeEmail } from '../../../common/transforms/normalize-email.transform.js';
 
 export class CreateUserDto {
   @ApiProperty({ example: EXAMPLES.name })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)

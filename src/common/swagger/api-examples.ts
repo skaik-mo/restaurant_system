@@ -10,4 +10,8 @@ export const EXAMPLES = {
   refreshToken: '42.Zm9vYmFyYmF6cXV4Y29ycHVzMTIzNDU2Nzg5MGFiY2RlZg',
   oneTimeToken: 'kcEx42OsInZ2i0T-yJOUPNgQS1_PFU8OxIYnaidNQeY',
   timestamp: '2026-09-21T15:00:00.000Z',
+  
+  categoryId: 1,
+  categoryName: 'Pizza',
+  categorySortOrder: 10,
 } as const;

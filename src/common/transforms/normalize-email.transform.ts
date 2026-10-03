@@ -1,6 +1,5 @@
-import { Transform } from 'class-transformer';
-import { trimAndLowercase } from '../utils/text.util.js';
+import { applyDecorators } from '@nestjs/common';
+import { Trim } from './trim.transform.js';
+import { Lowercase } from './lowercase.transform.js';
 
-export const NormalizeEmail = () =>
-    Transform(({ value }) =>
-        (typeof value === 'string' ? trimAndLowercase(value) : value))
+export const NormalizeEmail = () => applyDecorators(Trim(), Lowercase());
