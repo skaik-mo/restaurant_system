@@ -10,8 +10,15 @@ export const EXAMPLES = {
   refreshToken: '42.Zm9vYmFyYmF6cXV4Y29ycHVzMTIzNDU2Nzg5MGFiY2RlZg',
   oneTimeToken: 'kcEx42OsInZ2i0T-yJOUPNgQS1_PFU8OxIYnaidNQeY',
   timestamp: '2026-09-21T15:00:00.000Z',
-  
+
   categoryId: 1,
   categoryName: 'Pizza',
   categorySortOrder: 10,
+
+  menuItemId: 1,
+  menuItemName: 'Margherita',
+  menuItemDescription: 'Tomato, mozzarella and fresh basil',
+  menuItemPrice: '12.50',
+  menuItemImageUrl: 'https://cdn.example.com/menu/margherita.jpg',
+  menuItemSortOrder: 10,
 } as const;

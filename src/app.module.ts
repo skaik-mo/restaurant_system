@@ -12,6 +12,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { ResponseEnvelopeInterceptor } from './common/http/response-envelope.interceptor.js';
 import { CategoriesModule } from './categories/categories.module.js';
+import { MenuItemsModule } from './menu-items/menu-items.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CategoriesModule } from './categories/categories.module.js';
     MailModule,
     HealthModule,
     CategoriesModule,
+    MenuItemsModule,
   ],
   controllers: [],
   providers: [
