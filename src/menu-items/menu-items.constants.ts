@@ -1,0 +1,4 @@
+export const MENU_ITEM_PRICE_INTEGER_DIGITS = 4
+export const MENU_ITEM_MAX_PRICE = `${'9'.repeat(MENU_ITEM_PRICE_INTEGER_DIGITS)}.99`
+export const MENU_ITEM_PRICE_PATTERN = new RegExp(`^(0|[1-9]\\d{0,${MENU_ITEM_PRICE_INTEGER_DIGITS - 1}})(\\.\\d{1,2})?$`)
+export const MENU_ITEM_PRICE_NONZERO_PATTERN = /[1-9]/
