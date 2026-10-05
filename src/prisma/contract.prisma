@@ -64,13 +64,15 @@ enum TableStatus {
   BUSY
 }
 
-model Table {
-  id        Int                        @id @default(autoincrement())
-  number    Int                        @unique
-  status    TableStatus                @default(AVAILABLE)
-  orders    Order[]
-  createdAt TimestamptzString          @default(now())
-  updatedAt temporal.updatedAtString()
+model DiningTable {
+  id               Int                        @id @default(autoincrement())
+  number           Int                        @unique
+  status           TableStatus                @default(AVAILABLE)
+  qrToken          String                     @unique
+  qrTokenRotatedAt TimestamptzString          @default(now())
+  orders           Order[]
+  createdAt        TimestamptzString          @default(now())
+  updatedAt        temporal.updatedAtString()
 }
 
 enum OrderSource {
@@ -99,7 +101,7 @@ model Order {
   userId       Int?
   user         User?                      @relation(fields:[userId], references:[id])
   tableId      Int?
-  table        Table?                     @relation(fields:[tableId], references:[id])
+  table        DiningTable?               @relation(fields:[tableId], references:[id])
   items        OrderItem[]
   status       OrderStatus                @default(PENDING)
   createdAt    TimestamptzString          @default(now())
@@ -114,7 +116,7 @@ model OrderItem {
   orderId          Int
   order            Order                      @relation(fields:[orderId], references:[id])
   menuItemId       Int?
-  menuItem         MenuItem?                   @relation(fields:[menuItemId], references:[id], onDelete: SetNull)
+  menuItem         MenuItem?                  @relation(fields:[menuItemId], references:[id], onDelete: SetNull)
   createdAt        TimestamptzString          @default(now())
   updatedAt        temporal.updatedAtString()
 }
