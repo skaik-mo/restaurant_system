@@ -36,7 +36,6 @@ export class CategoriesController {
 
     @Get(':id')
     @Roles(...USER_ROLES)
-    @UseGuards(JwtAuthGuard, RolesGuard, MustChangePasswordGuard)
     @ApiOperation({ summary: 'Get one category' })
     @EnvelopeResponse({ status: 200, type: CategoryResponseDto, description: 'The category' })
     @ApiErrorResponse(400, COMMON_ERRORS.VALIDATION_FAILED)
@@ -48,9 +47,6 @@ export class CategoriesController {
     }
 
     @Post()
-    @ApiBearerAuth()
-    @Roles('ADMIN')
-    @UseGuards(JwtAuthGuard, RolesGuard, MustChangePasswordGuard)
     @ApiOperation({ summary: 'Create a category (admin only)' })
     @EnvelopeResponse({ status: 201, type: CategoryResponseDto, message: CATEGORIES_MESSAGES.CREATED, description: 'Category created' })
     @ApiErrorResponse(400, COMMON_ERRORS.VALIDATION_FAILED)
@@ -62,9 +58,6 @@ export class CategoriesController {
     }
 
     @Patch(':id')
-    @ApiBearerAuth()
-    @Roles('ADMIN')
-    @UseGuards(JwtAuthGuard, RolesGuard, MustChangePasswordGuard)
     @ApiOperation({ summary: 'Update a category (admin only)' })
     @EnvelopeResponse({ status: 200, type: CategoryResponseDto, message: CATEGORIES_MESSAGES.UPDATED, description: 'Category updated' })
     @ApiErrorResponse(400, COMMON_ERRORS.VALIDATION_FAILED)
@@ -77,11 +70,8 @@ export class CategoriesController {
     }
 
     @Delete(':id')
-    @ApiBearerAuth()
-    @Roles('ADMIN')
-    @UseGuards(JwtAuthGuard, RolesGuard, MustChangePasswordGuard)
-    @ApiOperation({ summary: 'Delete an empty category (admin only)' })
     @HttpCode(204)
+    @ApiOperation({ summary: 'Delete an empty category (admin only)' })
     @EnvelopeResponse({ status: 204, description: 'Category deleted' })
     @ApiErrorResponse(400, COMMON_ERRORS.VALIDATION_FAILED)
     @ApiErrorResponse(401, COMMON_ERRORS.UNAUTHORIZED)
