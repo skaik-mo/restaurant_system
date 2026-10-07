@@ -21,4 +21,9 @@ export const EXAMPLES = {
   menuItemPrice: '12.50',
   menuItemImageUrl: 'https://cdn.example.com/menu/margherita.jpg',
   menuItemSortOrder: 10,
+
+  tableId: 1,
+  tableNumber: 12,
+  tableStatus: 'AVAILABLE',
+  tableQrToken: 'Xk3v9QmT2bW7yHcL0aPzR5nJdE8sUfG1oIiV4tNqMwA',
 } as const;
