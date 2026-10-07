@@ -13,6 +13,7 @@ import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { ResponseEnvelopeInterceptor } from './common/http/response-envelope.interceptor.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { MenuItemsModule } from './menu-items/menu-items.module.js';
+import { DiningTablesModule } from './dining-tables/dining-tables.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { MenuItemsModule } from './menu-items/menu-items.module.js';
     HealthModule,
     CategoriesModule,
     MenuItemsModule,
+    DiningTablesModule,
   ],
   controllers: [],
   providers: [
