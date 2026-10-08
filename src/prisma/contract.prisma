@@ -93,19 +93,20 @@ enum OrderStatus {
 }
 
 model Order {
-  id           Int                        @id @default(autoincrement())
-  customerName String?
-  source       OrderSource
-  type         OrderType
-  totalPrice   Numeric(10, 2)
-  userId       Int?
-  user         User?                      @relation(fields:[userId], references:[id])
-  tableId      Int?
-  table        DiningTable?               @relation(fields:[tableId], references:[id])
-  items        OrderItem[]
-  status       OrderStatus                @default(PENDING)
-  createdAt    TimestamptzString          @default(now())
-  updatedAt    temporal.updatedAtString()
+  id                   Int                        @id @default(autoincrement())
+  customerName         String?
+  source               OrderSource
+  type                 OrderType
+  totalPrice           Numeric(10, 2)
+  orderAccessTokenHash String?                    @unique
+  userId               Int?
+  user                 User?                      @relation(fields:[userId], references:[id])
+  tableId              Int?
+  table                DiningTable?               @relation(fields:[tableId], references:[id])
+  items                OrderItem[]
+  status               OrderStatus                @default(PENDING)
+  createdAt            TimestamptzString          @default(now())
+  updatedAt            temporal.updatedAtString()
 }
 
 model OrderItem {
