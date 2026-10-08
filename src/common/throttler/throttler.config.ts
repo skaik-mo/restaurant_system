@@ -1,9 +1,10 @@
 import type { ThrottlerModuleOptions } from '@nestjs/throttler';
+import { sha256Hex } from '../utils/hashing.util.js';
 
 export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
 
-export const THROTTLER_NAMES = ['ip', 'email', 'user'] as const;
+export const THROTTLER_NAMES = ['ip', 'email', 'user', 'table'] as const;
 export type ThrottlerName = (typeof THROTTLER_NAMES)[number];
 
 type TrackableRequest = Record<string, unknown>;
@@ -31,5 +32,15 @@ export const throttlerOptions: ThrottlerModuleOptions = {
     { name: 'ip', ttl: MINUTE_MS, limit: 30, getTracker: ipTracker },
     { name: 'email', ttl: MINUTE_MS, limit: 5, getTracker: emailTracker },
     { name: 'user', ttl: 15 * MINUTE_MS, limit: 3, getTracker: userTracker },
+    { name: 'table', ttl: MINUTE_MS, limit: 30, getTracker: tableTracker },
   ],
 };
+
+function tableTracker(req: TrackableRequest): string {
+    const headers = req.headers as Record<string, unknown> | undefined;
+    const token = headers?.['x-table-token'];
+    if (typeof token === 'string' && token !== '') {
+        return `table:${sha256Hex(token)}`;
+    }
+    return ipTracker(req);
+}
