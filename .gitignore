@@ -70,3 +70,5 @@ src/prisma/contract.d.ts
 printf '\n# Dev-only: db update snapshots and refs. Remove this line when real migrations are adopted for production\nmigrations/\n' >> .gitignore
 # Dev-only: db update snapshots and refs. Remove this line when real migrations are adopted for production
 migrations/
+
+scripts/

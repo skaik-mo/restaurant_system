@@ -26,4 +26,10 @@ export const EXAMPLES = {
   tableNumber: 12,
   tableStatus: 'AVAILABLE',
   tableQrToken: 'Xk3v9QmT2bW7yHcL0aPzR5nJdE8sUfG1oIiV4tNqMwA',
+
+  orderId: 101,
+  orderStatus: 'PENDING',
+  orderTotalPrice: '25.00',
+  orderQuantity: 2,
+  orderAccessToken: 'Qm9yZGVyLWFjY2Vzcy10b2tlbi1leGFtcGxlLTAwMDE',
 } as const;
