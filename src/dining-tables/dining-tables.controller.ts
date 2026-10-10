@@ -14,11 +14,12 @@ import { RateLimitGuard } from '../common/throttler/rate-limit.guard.js';
 import { MINUTE_MS } from '../common/throttler/throttler.config.js';
 import { DiningTablesService } from './dining-tables.service.js';
 import { DINING_TABLES_ERRORS, DINING_TABLES_MESSAGES } from './dining-tables.messages.js';
-import { QR_ROTATE_LIMIT } from './dining-tables.constants.js';
+import { DINING_TABLE_STATUS_LIMIT, QR_ROTATE_LIMIT } from './dining-tables.constants.js';
 import { DiningTableResponseDto } from './dto/response/dining-table-response.dto.js';
 import { DiningTableQrTokenResponseDto } from './dto/response/dining-table-qr-token-response.dto.js';
 import { CreateDiningTableDto } from './dto/body/create-dining-table.dto.js';
 import { UpdateDiningTableDto } from './dto/body/update-dining-table.dto.js';
+import { UpdateDiningTableStatusDto } from './dto/body/update-dining-table-status.dto.js';
 import { DiningTableIdParamDto } from './dto/params/dining-table-id-param.dto.js';
 
 @ApiTags('dining-tables')
@@ -72,6 +73,22 @@ export class DiningTablesController {
     @ApiErrorResponse(409, DINING_TABLES_ERRORS.NUMBER_TAKEN)
     update(@Param() params: DiningTableIdParamDto, @Body() dto: UpdateDiningTableDto): Promise<DiningTableResponseDto> {
         return this.diningTablesService.update(params.id, dto);
+    }
+
+    @Patch(':id/status')
+    @Roles('WAITER', 'ADMIN')
+    @UseGuards(RateLimitGuard)
+    @RateLimit(DINING_TABLE_STATUS_LIMIT)
+    @ApiOperation({ summary: 'Mark a table BUSY or free it. Freeing is refused while it has pending or preparing orders (waiter or admin)' })
+    @EnvelopeResponse({ status: 200, type: DiningTableResponseDto, message: DINING_TABLES_MESSAGES.STATUS_UPDATED, description: 'The updated dining table' })
+    @ApiErrorResponse(400, COMMON_ERRORS.VALIDATION_FAILED)
+    @ApiErrorResponse(401, COMMON_ERRORS.UNAUTHORIZED)
+    @ApiErrorResponse(403, COMMON_ERRORS.FORBIDDEN, AUTH_ERRORS.PASSWORD_CHANGE_REQUIRED)
+    @ApiErrorResponse(404, DINING_TABLES_ERRORS.NOT_FOUND)
+    @ApiErrorResponse(409, DINING_TABLES_ERRORS.HAS_OPEN_ORDERS)
+    @ApiErrorResponse(429, COMMON_ERRORS.RATE_LIMITED)
+    setStatus(@Param() params: DiningTableIdParamDto, @Body() dto: UpdateDiningTableStatusDto): Promise<DiningTableResponseDto> {
+        return this.diningTablesService.setStatus(params.id, dto.status);
     }
 
     @Delete(':id')
