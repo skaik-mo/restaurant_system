@@ -32,4 +32,10 @@ export const EXAMPLES = {
   orderTotalPrice: '25.00',
   orderQuantity: 2,
   orderAccessToken: 'Qm9yZGVyLWFjY2Vzcy10b2tlbi1leGFtcGxlLTAwMDE',
+
+  orderSource: 'QR_TABLE',
+  orderType: 'DINE_IN',
+  orderCustomerName: 'Ahmad',
+  orderItemId: 1,
+  orderLimit: 100,
 } as const;
