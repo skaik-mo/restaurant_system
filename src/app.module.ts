@@ -15,6 +15,7 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { MenuItemsModule } from './menu-items/menu-items.module.js';
 import { DiningTablesModule } from './dining-tables/dining-tables.module.js';
 import { GuestModule } from './guest/guest.module.js';
+import { OrdersModule } from './orders/orders.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { GuestModule } from './guest/guest.module.js';
     MenuItemsModule,
     DiningTablesModule,
     GuestModule,
+    OrdersModule,
   ],
   controllers: [],
   providers: [

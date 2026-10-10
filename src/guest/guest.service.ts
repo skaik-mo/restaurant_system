@@ -125,6 +125,7 @@ export class GuestService {
         await this.db.client.transaction(async (tx) => {
             await this.lockTable(tx, table);
             await this.assertCapacity(tx, table.id);
+            await this.markTableBusy(tx, table.id);
             created = await this.insertOrder(tx, table.id, lines, totalCents, orderToken);
         });
 
@@ -154,6 +155,11 @@ export class GuestService {
         if (open >= MAX_OPEN_ORDERS_PER_TABLE) {
             throw new ConflictException(GUEST_ERRORS.TABLE_LIMIT_REACHED);
         }
+    }
+
+    // The table row is already locked by lockTable, so this cannot race with a "free table" call
+    private async markTableBusy(tx: Tx, tableId: number): Promise<void> {
+        await tx.orm.public.DiningTable.where({ id: tableId }).updateAndCount({ status: 'BUSY' });
     }
 
     private async insertOrder(tx: Tx, tableId: number, lines: OrderLine[], totalCents: number, orderToken: string) {

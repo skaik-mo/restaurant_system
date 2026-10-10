@@ -3,8 +3,10 @@ import { DatabaseService } from '../database/database.service.js';
 import { COMMON_ERRORS } from '../common/errors/common.errors.js';
 import { isForeignKeyViolation, isUniqueViolation } from '../common/utils/db-error.util.js';
 import { generateRandomToken } from '../common/utils/random-token.util.js';
+import { OPEN_ORDER_STATUSES } from '../guest/guest.constants.js';
 import { DINING_TABLES_ERRORS } from './dining-tables.messages.js';
 import { toDiningTableResponseDto, toDiningTableQrTokenResponseDto } from './dining-table.mapper.js';
+import type { DiningTableStatusValue } from './dining-tables.constants.js';
 import type { DiningTableResponseDto } from './dto/response/dining-table-response.dto.js';
 import type { DiningTableQrTokenResponseDto } from './dto/response/dining-table-qr-token-response.dto.js';
 import type { CreateDiningTableDto } from './dto/body/create-dining-table.dto.js';
@@ -13,6 +15,8 @@ import type { UpdateDiningTableDto } from './dto/body/update-dining-table.dto.js
 // From pg_indexes and the dry run; re-verify if the definitions change
 const TABLE_NUMBER_UNIQUE = 'diningTable_number_key';
 const TABLE_ORDERS_FK = 'order_tableId_fkey';
+
+type Tx = Parameters<Parameters<DatabaseService['client']['transaction']>[0]>[0];
 
 @Injectable()
 export class DiningTablesService {
@@ -108,5 +112,43 @@ export class DiningTablesService {
             throw new NotFoundException(DINING_TABLES_ERRORS.NOT_FOUND);
         }
         return toDiningTableQrTokenResponseDto(row);
+    }
+
+    async setStatus(id: number, status: DiningTableStatusValue): Promise<DiningTableResponseDto> {
+        if (status === 'BUSY') {
+            await this.markBusy(id);
+        } else {
+            await this.markAvailable(id);
+        }
+        return this.findOne(id);
+    }
+
+    // Setting the value it already has still matches the row (idempotent)
+    private async markBusy(id: number): Promise<void> {
+        const updated = await this.diningTables.where({ id }).updateAndCount({ status: 'BUSY' });
+        if (updated !== 1) {
+            throw new NotFoundException(DINING_TABLES_ERRORS.NOT_FOUND);
+        }
+    }
+
+    // The UPDATE takes the row lock, so a concurrent guest order queues behind it.
+    // Throwing inside the transaction rolls the UPDATE back.
+    private async markAvailable(id: number): Promise<void> {
+        await this.db.client.transaction(async (tx) => {
+            const updated = await tx.orm.public.DiningTable.where({ id }).updateAndCount({ status: 'AVAILABLE' });
+            if (updated !== 1) {
+                throw new NotFoundException(DINING_TABLES_ERRORS.NOT_FOUND);
+            }
+            await this.assertNoOpenOrders(tx, id);
+        });
+    }
+
+    private async assertNoOpenOrders(tx: Tx, tableId: number): Promise<void> {
+        for (const status of OPEN_ORDER_STATUSES) {
+            const open = await tx.orm.public.Order.where({ tableId, status }).first();
+            if (open) {
+                throw new ConflictException(DINING_TABLES_ERRORS.HAS_OPEN_ORDERS);
+            }
+        }
     }
 }
