@@ -5,6 +5,7 @@ import { getAppTimeZone, startOfDayInTimeZone } from '../common/utils/timezone.u
 import { toIsoTimestamp } from '../common/utils/timestamp.util.js';
 import type { UserRole } from '../common/types/user-role.type.js';
 import { OPEN_ORDER_STATUSES } from '../guest/guest.constants.js';
+import { RealtimeBus } from '../realtime/realtime.bus.js';
 import { ORDER_LIST_DEFAULT_LIMIT, ORDER_TRANSITIONS, type OrderStatusValue } from './orders.constants.js';
 import { ORDERS_ERRORS } from './orders.messages.js';
 import { toOrderResponseDto, type OrderItemRecord, type OrderRecord } from './order.mapper.js';
@@ -24,6 +25,7 @@ export class OrdersService {
     constructor(
         private readonly db: DatabaseService,
         private readonly config: ConfigService,
+        private readonly realtime: RealtimeBus,
     ) { }
 
     private get orm() {
@@ -54,7 +56,14 @@ export class OrdersService {
         }
         this.assertTransition(order.status, target, role);
         await this.compareAndSetStatus(id, order.status, target);
-        return this.findOne(id);
+        const response = await this.findOne(id);
+        this.publishUpdated(response);
+        return response;
+    }
+
+    // Runs after the status change is committed; publish() never throws
+    private publishUpdated(order: OrderResponseDto): void {
+        this.realtime.publish('order.updated', { id: order.id, status: order.status, updatedAt: order.updatedAt });
     }
 
     private assertTransition(from: string, to: string, role: UserRole): void {

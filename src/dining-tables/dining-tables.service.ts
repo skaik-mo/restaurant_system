@@ -3,7 +3,9 @@ import { DatabaseService } from '../database/database.service.js';
 import { COMMON_ERRORS } from '../common/errors/common.errors.js';
 import { isForeignKeyViolation, isUniqueViolation } from '../common/utils/db-error.util.js';
 import { generateRandomToken } from '../common/utils/random-token.util.js';
+import { toIsoTimestamp } from '../common/utils/timestamp.util.js';
 import { OPEN_ORDER_STATUSES } from '../guest/guest.constants.js';
+import { RealtimeBus } from '../realtime/realtime.bus.js';
 import { DINING_TABLES_ERRORS } from './dining-tables.messages.js';
 import { toDiningTableResponseDto, toDiningTableQrTokenResponseDto } from './dining-table.mapper.js';
 import type { DiningTableStatusValue } from './dining-tables.constants.js';
@@ -20,7 +22,11 @@ type Tx = Parameters<Parameters<DatabaseService['client']['transaction']>[0]>[0]
 
 @Injectable()
 export class DiningTablesService {
-    constructor(private readonly db: DatabaseService) { }
+
+    constructor(
+        private readonly db: DatabaseService,
+        private readonly realtime: RealtimeBus,
+    ) { }
 
     private get diningTables() {
         return this.db.client.orm.public.DiningTable;
@@ -120,7 +126,14 @@ export class DiningTablesService {
         } else {
             await this.markAvailable(id);
         }
-        return this.findOne(id);
+        const response = await this.findOne(id);
+        await this.publishUpdated(response);
+        return response;
+    }
+
+    // Runs after the status change is committed. A failure here must never fail the staff request.
+    private async publishUpdated(diningTable: DiningTableResponseDto): Promise<void> {
+        this.realtime.publish('table.updated', { id: diningTable.id, status: diningTable.status, updatedAt: toIsoTimestamp(diningTable.updatedAt) });
     }
 
     // Setting the value it already has still matches the row (idempotent)
