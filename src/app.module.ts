@@ -16,29 +16,31 @@ import { MenuItemsModule } from './menu-items/menu-items.module.js';
 import { DiningTablesModule } from './dining-tables/dining-tables.module.js';
 import { GuestModule } from './guest/guest.module.js';
 import { OrdersModule } from './orders/orders.module.js';
+import { RealtimeModule } from './realtime/realtime.module.js';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    ThrottlerModule.forRoot(throttlerOptions),
-    ScheduleModule.forRoot(),
-    DatabaseModule,
-    AuthModule,
-    UsersModule,
-    MailModule,
-    HealthModule,
-    CategoriesModule,
-    MenuItemsModule,
-    DiningTablesModule,
-    GuestModule,
-    OrdersModule,
-  ],
-  controllers: [],
-  providers: [
-    { provide: APP_FILTER, useClass: AllExceptionsFilter },
-    { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
-  ],
+    imports: [
+        ConfigModule.forRoot({
+            isGlobal: true,
+        }),
+        ThrottlerModule.forRoot(throttlerOptions),
+        ScheduleModule.forRoot(),
+        DatabaseModule,
+        AuthModule,
+        UsersModule,
+        MailModule,
+        HealthModule,
+        CategoriesModule,
+        MenuItemsModule,
+        DiningTablesModule,
+        GuestModule,
+        OrdersModule,
+        RealtimeModule,
+    ],
+    controllers: [],
+    providers: [
+        { provide: APP_FILTER, useClass: AllExceptionsFilter },
+        { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
+    ],
 })
 export class AppModule { }
