@@ -41,6 +41,24 @@ export interface PlaceOrderInput {
     orderAccessTokenHash: string | null;
 }
 
+export interface PlaceTakeawayInput {
+    lines: OrderLine[];
+    totalCents: number;
+    userId: number;
+    customerName: string;
+}
+
+interface InsertOrderInput {
+    type: 'DINE_IN' | 'TAKEAWAY';
+    source: 'QR_TABLE' | 'WAITER';
+    tableId: number | null;
+    lines: OrderLine[];
+    totalCents: number;
+    userId: number | null;
+    customerName: string | null;
+    orderAccessTokenHash: string | null;
+}
+
 function itemsError(error: { code: string; message: string }, detail: string): BadRequestException {
     return new BadRequestException({
         code: error.code,
@@ -104,19 +122,41 @@ export class OrderPlacementService {
         await this.db.client.transaction(async (tx) => {
             await this.lockTable(tx, input);
             await this.assertCapacity(tx, input.tableId);
-            created = await this.insertOrder(tx, input);
+            created = await this.insertOrder(tx, { ...input, type: 'DINE_IN' });
         });
 
-        if (!created) {
-            throw new Error('Order transaction finished without a result');
-        }
-        return created;
+        return this.requireCreated(created);
+    }
+
+    // Takeaway has no table: no row lock and no open-order cap. The transaction keeps order and lines atomic.
+    async placeTakeaway(input: PlaceTakeawayInput): Promise<PlacedOrder> {
+        let created: PlacedOrder | undefined;
+
+        await this.db.client.transaction(async (tx) => {
+            created = await this.insertOrder(tx, {
+                type: 'TAKEAWAY',
+                source: 'WAITER',
+                tableId: null,
+                lines: input.lines,
+                totalCents: input.totalCents,
+                userId: input.userId,
+                customerName: input.customerName,
+                orderAccessTokenHash: null,
+            });
+        });
+
+        return this.requireCreated(created);
+    }
+
+    // Runs after the commit. publish() never throws.
+    publishCreated(order: PlacedOrder): void {
+        this.realtime.publish('order.created', { id: order.id, status: order.status, updatedAt: order.updatedAt });
     }
 
     // Runs after the commit. A failure here must never fail the order that was already placed.
     async publishPlaced(order: PlacedOrder, tableId: number): Promise<void> {
         try {
-            this.realtime.publish('order.created', { id: order.id, status: order.status, updatedAt: order.updatedAt });
+            this.publishCreated(order);
             const table = await this.orm.DiningTable.where({ id: tableId }).first();
             if (table) {
                 this.realtime.publish('table.updated', { id: table.id, status: table.status, updatedAt: toIsoTimestamp(table.updatedAt) });
@@ -124,6 +164,13 @@ export class OrderPlacementService {
         } catch (err: unknown) {
             this.logger.warn(`Realtime publish after order ${order.id} failed: ${err instanceof Error ? err.message : 'unknown error'}`);
         }
+    }
+
+    private requireCreated(created: PlacedOrder | undefined): PlacedOrder {
+        if (!created) {
+            throw new Error('Order transaction finished without a result');
+        }
+        return created;
     }
 
     // The UPDATE takes the row lock: concurrent orders for one table queue here.
@@ -147,12 +194,12 @@ export class OrderPlacementService {
         }
     }
 
-    private async insertOrder(tx: Tx, input: PlaceOrderInput): Promise<PlacedOrder> {
+    private async insertOrder(tx: Tx, input: InsertOrderInput): Promise<PlacedOrder> {
         const order = await tx.orm.public.Order.create({
             source: input.source,
-            type: 'DINE_IN',
+            type: input.type,
             totalPrice: toMoney(centsToMoneyString(input.totalCents)),
-            tableId: input.tableId,
+            ...(input.tableId === null ? {} : { tableId: input.tableId }),
             ...(input.userId === null ? {} : { userId: input.userId }),
             ...(input.customerName === null ? {} : { customerName: input.customerName }),
             ...(input.orderAccessTokenHash === null ? {} : { orderAccessTokenHash: input.orderAccessTokenHash }),

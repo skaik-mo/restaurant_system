@@ -21,6 +21,7 @@ import { OrderIdParamDto } from './dto/params/order-id-param.dto.js';
 import { ListOrdersQueryDto } from './dto/query/list-orders-query.dto.js';
 import { UpdateOrderStatusDto } from './dto/body/update-order-status.dto.js';
 import { CreateOrderDto } from './dto/body/create-order.dto.js';
+import { CreateTakeawayOrderDto } from './dto/body/create-takeaway-order.dto.js';
 
 @ApiTags('orders')
 @ApiBearerAuth()
@@ -43,6 +44,20 @@ export class OrdersController {
     @ApiErrorResponse(429, COMMON_ERRORS.RATE_LIMITED)
     create(@Body() dto: CreateOrderDto, @Req() req: { user: JwtPayload }): Promise<OrderResponseDto> {
         return this.ordersService.create(dto, req.user.sub);
+    }
+
+    @Post('takeaway')
+    @Roles('WAITER', 'ADMIN')
+    @UseGuards(RateLimitGuard)
+    @RateLimit(ORDER_CREATE_LIMIT)
+    @ApiOperation({ summary: 'Create a takeaway order (no table) for a named customer (waiter or admin)' })
+    @EnvelopeResponse({ status: 201, type: OrderResponseDto, message: ORDERS_MESSAGES.CREATED, description: 'The created takeaway order' })
+    @ApiErrorResponse(400, COMMON_ERRORS.VALIDATION_FAILED, GUEST_ERRORS.MENU_ITEM_NOT_FOUND, GUEST_ERRORS.ITEM_UNAVAILABLE)
+    @ApiErrorResponse(401, COMMON_ERRORS.UNAUTHORIZED)
+    @ApiErrorResponse(403, COMMON_ERRORS.FORBIDDEN, AUTH_ERRORS.PASSWORD_CHANGE_REQUIRED)
+    @ApiErrorResponse(429, COMMON_ERRORS.RATE_LIMITED)
+    createTakeaway(@Body() dto: CreateTakeawayOrderDto, @Req() req: { user: JwtPayload }): Promise<OrderResponseDto> {
+        return this.ordersService.createTakeaway(dto, req.user.sub);
     }
 
     @Get()
