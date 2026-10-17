@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EnvelopeResponse } from '../common/http/envelope-response.decorator.js';
 import { ApiErrorResponse } from '../common/swagger/api-error-response.decorator.js';
@@ -12,13 +12,15 @@ import type { JwtPayload } from '../auth/strategies/jwt.strategy.js';
 import { USER_ROLES, type UserRole } from '../common/types/user-role.type.js';
 import { RateLimit } from '../common/throttler/rate-limit.decorator.js';
 import { RateLimitGuard } from '../common/throttler/rate-limit.guard.js';
+import { GUEST_ERRORS } from '../guest/guest.messages.js';
 import { OrdersService } from './orders.service.js';
 import { ORDERS_ERRORS, ORDERS_MESSAGES } from './orders.messages.js';
-import { ORDER_READ_LIMIT, ORDER_STATUS_CHANGE_LIMIT } from './orders.constants.js';
+import { ORDER_CREATE_LIMIT, ORDER_READ_LIMIT, ORDER_STATUS_CHANGE_LIMIT } from './orders.constants.js';
 import { OrderResponseDto } from './dto/response/order-response.dto.js';
 import { OrderIdParamDto } from './dto/params/order-id-param.dto.js';
 import { ListOrdersQueryDto } from './dto/query/list-orders-query.dto.js';
 import { UpdateOrderStatusDto } from './dto/body/update-order-status.dto.js';
+import { CreateOrderDto } from './dto/body/create-order.dto.js';
 
 @ApiTags('orders')
 @ApiBearerAuth()
@@ -27,6 +29,21 @@ import { UpdateOrderStatusDto } from './dto/body/update-order-status.dto.js';
 @Roles('ADMIN')
 export class OrdersController {
     constructor(private readonly ordersService: OrdersService) { }
+
+    @Post()
+    @Roles('WAITER', 'ADMIN')
+    @UseGuards(RateLimitGuard)
+    @RateLimit(ORDER_CREATE_LIMIT)
+    @ApiOperation({ summary: 'Create a dine-in order for a table on behalf of a guest (waiter or admin)' })
+    @EnvelopeResponse({ status: 201, type: OrderResponseDto, message: ORDERS_MESSAGES.CREATED, description: 'The created order' })
+    @ApiErrorResponse(400, COMMON_ERRORS.VALIDATION_FAILED, ORDERS_ERRORS.TABLE_NOT_FOUND, GUEST_ERRORS.MENU_ITEM_NOT_FOUND, GUEST_ERRORS.ITEM_UNAVAILABLE)
+    @ApiErrorResponse(401, COMMON_ERRORS.UNAUTHORIZED)
+    @ApiErrorResponse(403, COMMON_ERRORS.FORBIDDEN, AUTH_ERRORS.PASSWORD_CHANGE_REQUIRED)
+    @ApiErrorResponse(409, GUEST_ERRORS.TABLE_LIMIT_REACHED)
+    @ApiErrorResponse(429, COMMON_ERRORS.RATE_LIMITED)
+    create(@Body() dto: CreateOrderDto, @Req() req: { user: JwtPayload }): Promise<OrderResponseDto> {
+        return this.ordersService.create(dto, req.user.sub);
+    }
 
     @Get()
     @Roles(...USER_ROLES)

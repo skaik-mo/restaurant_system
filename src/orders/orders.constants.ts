@@ -7,6 +7,7 @@ export type OrderStatusValue = (typeof ORDER_STATUSES)[number];
 
 export const ORDER_LIST_DEFAULT_LIMIT = 100;
 export const ORDER_LIST_MAX_LIMIT = 200;
+export const ORDER_CUSTOMER_NAME_MAX_LENGTH = 100;
 
 // from -> to -> roles allowed to make the move. READY and CANCELLED are terminal (absent).
 export const ORDER_TRANSITIONS: Record<string, Record<string, readonly UserRole[]>> = {
@@ -16,3 +17,4 @@ export const ORDER_TRANSITIONS: Record<string, Record<string, readonly UserRole[
 
 export const ORDER_READ_LIMIT = { ip: { limit: 600, ttl: MINUTE_MS }, user: { limit: 120, ttl: MINUTE_MS } };
 export const ORDER_STATUS_CHANGE_LIMIT = { ip: { limit: 300, ttl: MINUTE_MS }, user: { limit: 60, ttl: MINUTE_MS } };
+export const ORDER_CREATE_LIMIT = { ip: { limit: 300, ttl: MINUTE_MS }, user: { limit: 60, ttl: MINUTE_MS } };
