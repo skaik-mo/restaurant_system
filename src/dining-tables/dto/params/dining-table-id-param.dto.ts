@@ -4,7 +4,7 @@ import { IsInt, Max, Min } from 'class-validator';
 import { EXAMPLES } from '../../../common/swagger/api-examples.js';
 
 export class DiningTableIdParamDto {
-    @ApiProperty({ example: EXAMPLES.tableId })
+    @ApiProperty({ example: EXAMPLES.diningTableId })
     @Type(() => Number)
     @IsInt()
     @Min(1)
