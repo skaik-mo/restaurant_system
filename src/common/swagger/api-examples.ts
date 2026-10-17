@@ -22,10 +22,10 @@ export const EXAMPLES = {
   menuItemImageUrl: 'https://cdn.example.com/menu/margherita.jpg',
   menuItemSortOrder: 10,
 
-  tableId: 1,
-  tableNumber: 12,
-  tableStatus: 'AVAILABLE',
-  tableQrToken: 'Xk3v9QmT2bW7yHcL0aPzR5nJdE8sUfG1oIiV4tNqMwA',
+  diningTableId: 1,
+  diningTableNumber: 12,
+  diningTableStatus: 'AVAILABLE',
+  diningTableQrToken: 'Xk3v9QmT2bW7yHcL0aPzR5nJdE8sUfG1oIiV4tNqMwA',
 
   orderId: 101,
   orderStatus: 'PENDING',

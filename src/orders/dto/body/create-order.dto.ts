@@ -8,7 +8,7 @@ import { MAX_LINES_PER_ORDER } from '../../../guest/guest.constants.js';
 import { ORDER_CUSTOMER_NAME_MAX_LENGTH } from '../../orders.constants.js';
 
 export class CreateOrderDto {
-    @ApiProperty({ example: EXAMPLES.tableId })
+    @ApiProperty({ example: EXAMPLES.diningTableId })
     @Type(() => Number)
     @IsInt()
     @Min(1)

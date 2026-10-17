@@ -35,10 +35,10 @@ export class OrderResponseDto {
     @ApiProperty({ example: EXAMPLES.orderTotalPrice })
     totalPrice!: string;
 
-    @ApiProperty({ example: EXAMPLES.tableId, nullable: true, type: Number })
+    @ApiProperty({ example: EXAMPLES.diningTableId, nullable: true, type: Number })
     tableId!: number | null;
 
-    @ApiProperty({ example: EXAMPLES.tableNumber, nullable: true, type: Number })
+    @ApiProperty({ example: EXAMPLES.diningTableNumber, nullable: true, type: Number })
     tableNumber!: number | null;
 
     @ApiProperty({ example: EXAMPLES.userId, nullable: true, type: Number, description: 'Staff member who created the order (null for QR orders)' })

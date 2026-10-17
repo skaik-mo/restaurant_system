@@ -2,13 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 import { EXAMPLES } from '../../../common/swagger/api-examples.js';
 
 export class DiningTableResponseDto {
-    @ApiProperty({ example: EXAMPLES.tableId })
+    @ApiProperty({ example: EXAMPLES.diningTableId })
     id!: number;
 
-    @ApiProperty({ example: EXAMPLES.tableNumber })
+    @ApiProperty({ example: EXAMPLES.diningTableNumber })
     number!: number;
 
-    @ApiProperty({ example: EXAMPLES.tableStatus, enum: ['AVAILABLE', 'BUSY'] })
+    @ApiProperty({ example: EXAMPLES.diningTableStatus, enum: ['AVAILABLE', 'BUSY'] })
     status!: string;
 
     @ApiProperty({ example: EXAMPLES.timestamp })
