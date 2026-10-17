@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../database/database.service.js';
 import { getAppTimeZone, startOfDayInTimeZone } from '../common/utils/timezone.util.js';
@@ -8,7 +8,9 @@ import { OPEN_ORDER_STATUSES } from '../guest/guest.constants.js';
 import { RealtimeBus } from '../realtime/realtime.bus.js';
 import { ORDER_LIST_DEFAULT_LIMIT, ORDER_TRANSITIONS, type OrderStatusValue } from './orders.constants.js';
 import { ORDERS_ERRORS } from './orders.messages.js';
+import { OrderPlacementService } from './order-placement.service.js';
 import { toOrderResponseDto, type OrderItemRecord, type OrderRecord } from './order.mapper.js';
+import type { CreateOrderDto } from './dto/body/create-order.dto.js';
 import type { ListOrdersQueryDto } from './dto/query/list-orders-query.dto.js';
 import type { OrderResponseDto } from './dto/response/order-response.dto.js';
 
@@ -20,16 +22,45 @@ function byCreatedAtThenId(a: OrderRecord, b: OrderRecord): number {
     return createdAtMs(a) - createdAtMs(b) || a.id - b.id;
 }
 
+function tableNotFound(): BadRequestException {
+    return new BadRequestException({
+        code: ORDERS_ERRORS.TABLE_NOT_FOUND.code,
+        message: ORDERS_ERRORS.TABLE_NOT_FOUND.message,
+        details: [{ field: 'tableId', message: 'Table not found' }],
+    });
+}
+
 @Injectable()
 export class OrdersService {
     constructor(
         private readonly db: DatabaseService,
         private readonly config: ConfigService,
         private readonly realtime: RealtimeBus,
+        private readonly placement: OrderPlacementService,
     ) { }
 
     private get orm() {
         return this.db.client.orm.public;
+    }
+
+    async create(dto: CreateOrderDto, userId: number): Promise<OrderResponseDto> {
+        await this.requireTable(dto.tableId);
+        this.placement.assertNoDuplicateLines(dto.items);
+        const lines = await this.placement.buildLines(dto.items);
+        const totalCents = this.placement.sumCents(lines);
+
+        const order = await this.placement.place({
+            tableId: dto.tableId,
+            lockFailure: tableNotFound,
+            lines,
+            totalCents,
+            source: 'WAITER',
+            userId,
+            customerName: dto.customerName ?? null,
+            orderAccessTokenHash: null,
+        });
+        await this.placement.publishPlaced(order, dto.tableId);
+        return this.findOne(order.id);
     }
 
     async list(query: ListOrdersQueryDto): Promise<OrderResponseDto[]> {
@@ -59,6 +90,13 @@ export class OrdersService {
         const response = await this.findOne(id);
         this.publishUpdated(response);
         return response;
+    }
+
+    private async requireTable(tableId: number): Promise<void> {
+        const table = await this.orm.DiningTable.where({ id: tableId }).first();
+        if (!table) {
+            throw tableNotFound();
+        }
     }
 
     // Runs after the status change is committed; publish() never throws
