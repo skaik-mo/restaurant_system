@@ -11,6 +11,7 @@ import { ORDERS_ERRORS } from './orders.messages.js';
 import { OrderPlacementService } from './order-placement.service.js';
 import { toOrderResponseDto, type OrderItemRecord, type OrderRecord } from './order.mapper.js';
 import type { CreateOrderDto } from './dto/body/create-order.dto.js';
+import type { CreateTakeawayOrderDto } from './dto/body/create-takeaway-order.dto.js';
 import type { ListOrdersQueryDto } from './dto/query/list-orders-query.dto.js';
 import type { OrderResponseDto } from './dto/response/order-response.dto.js';
 
@@ -60,6 +61,21 @@ export class OrdersService {
             orderAccessTokenHash: null,
         });
         await this.placement.publishPlaced(order, dto.tableId);
+        return this.findOne(order.id);
+    }
+
+    async createTakeaway(dto: CreateTakeawayOrderDto, userId: number): Promise<OrderResponseDto> {
+        this.placement.assertNoDuplicateLines(dto.items);
+        const lines = await this.placement.buildLines(dto.items);
+        const totalCents = this.placement.sumCents(lines);
+
+        const order = await this.placement.placeTakeaway({
+            lines,
+            totalCents,
+            userId,
+            customerName: dto.customerName,
+        });
+        this.placement.publishCreated(order);
         return this.findOne(order.id);
     }
 
