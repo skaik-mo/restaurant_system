@@ -21,3 +21,7 @@ export const GUEST_ORDER_POLL_LIMITS = {
     ip: { limit: 300, ttl: MINUTE_MS },
     table: { limit: 120, ttl: MINUTE_MS },
 };
+export const GUEST_ORDER_CANCEL_LIMITS = {
+    ip: { limit: 30, ttl: MINUTE_MS },
+    table: { limit: 10, ttl: MINUTE_MS },
+};
