@@ -153,6 +153,10 @@ export class OrderPlacementService {
         this.realtime.publish('order.created', { id: order.id, status: order.status, updatedAt: order.updatedAt });
     }
 
+    publishUpdated(order: PlacedOrder): void {
+        this.realtime.publish('order.updated', { id: order.id, status: order.status, updatedAt: order.updatedAt });
+    }
+
     // Runs after the commit. A failure here must never fail the order that was already placed.
     async publishPlaced(order: PlacedOrder, tableId: number): Promise<void> {
         try {

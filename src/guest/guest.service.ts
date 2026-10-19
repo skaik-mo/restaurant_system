@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
 import { generateRandomToken } from '../common/utils/random-token.util.js';
 import { sha256Hex } from '../common/utils/hashing.util.js';
@@ -31,6 +31,24 @@ export class GuestService {
             throw new UnauthorizedException(GUEST_ERRORS.TABLE_TOKEN_INVALID);
         }
         return table;
+    }
+
+    private hashOrderToken(token: string | undefined): string {
+        if (!token || token.length > MAX_HEADER_TOKEN_LENGTH) {
+            throw new UnauthorizedException(GUEST_ERRORS.ORDER_TOKEN_INVALID);
+        }
+        return sha256Hex(token);
+    }
+
+    // One query covers unknown id, wrong token and another table's order: identical 404
+    private async requireOwnOrder(orderId: number, tableId: number, tokenHash: string) {
+        const order = await this.orm.Order
+            .where({ id: orderId, tableId, orderAccessTokenHash: tokenHash })
+            .first();
+        if (!order) {
+            throw new NotFoundException(GUEST_ERRORS.ORDER_NOT_FOUND);
+        }
+        return order;
     }
 
     async getMenu(tableToken: string | undefined): Promise<GuestMenuCategoryResponseDto[]> {
@@ -76,16 +94,34 @@ export class GuestService {
         orderId: number,
     ): Promise<GuestOrderStatusResponseDto> {
         const table = await this.requireTable(tableToken);
-        if (!orderToken || orderToken.length > MAX_HEADER_TOKEN_LENGTH) {
-            throw new UnauthorizedException(GUEST_ERRORS.ORDER_TOKEN_INVALID);
-        }
-        // One query covers unknown id, wrong token and another table's order: identical 404
-        const order = await this.orm.Order
-            .where({ id: orderId, tableId: table.id, orderAccessTokenHash: sha256Hex(orderToken) })
-            .first();
-        if (!order) {
-            throw new NotFoundException(GUEST_ERRORS.ORDER_NOT_FOUND);
-        }
+        const tokenHash = this.hashOrderToken(orderToken);
+        const order = await this.requireOwnOrder(orderId, table.id, tokenHash);
         return toGuestOrderStatus(order);
+    }
+
+    async cancelOrder(
+        tableToken: string | undefined,
+        orderToken: string | undefined,
+        orderId: number,
+    ): Promise<GuestOrderStatusResponseDto> {
+        const table = await this.requireTable(tableToken);
+        const tokenHash = this.hashOrderToken(orderToken);
+
+        // One UPDATE guarded by ownership and PENDING: the loser of a race updates 0 rows
+        const changed = await this.orm.Order
+            .where({ id: orderId, tableId: table.id, orderAccessTokenHash: tokenHash, status: 'PENDING' })
+            .updateAndCount({ status: 'CANCELLED' });
+
+        const order = await this.requireOwnOrder(orderId, table.id, tokenHash);
+        const response = toGuestOrderStatus(order);
+        if (changed === 1) {
+            this.placement.publishUpdated(response);
+            return response;
+        }
+        // Idempotent: a retry after a dropped response (or a staff cancel) still ends CANCELLED
+        if (order.status === 'CANCELLED') {
+            return response;
+        }
+        throw new ConflictException(GUEST_ERRORS.ORDER_NOT_CANCELLABLE);
     }
 }
