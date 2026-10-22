@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { toValidationException } from './common/errors/validation-errors.js';
 import helmet from 'helmet';
 import { isSwaggerEnabled } from './common/utils/swagger-enabled.util.js';
+import { parseCorsOrigins } from './common/utils/cors-origins.util.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -26,6 +27,19 @@ async function bootstrap() {
       exceptionFactory: toValidationException,
     }),
   );
+
+  const corsOrigins = parseCorsOrigins(
+    configService.get<string>('CORS_ORIGINS'),
+    configService.get<string>('NODE_ENV') === 'production',
+  );
+  app.enableCors({
+    origin: corsOrigins,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Table-Token', 'X-Order-Token'],
+    exposedHeaders: ['Retry-After'],
+    credentials: false,
+    maxAge: 600,
+  });
 
   const swaggerEnabled = isSwaggerEnabled(configService);
   app.use(helmet(swaggerEnabled ? { contentSecurityPolicy: false } : {}));
