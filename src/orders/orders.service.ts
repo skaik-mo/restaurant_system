@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException,Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../database/database.service.js';
 import { getAppTimeZone, startOfDayInTimeZone } from '../common/utils/timezone.util.js';
@@ -15,12 +15,18 @@ import type { CreateTakeawayOrderDto } from './dto/body/create-takeaway-order.dt
 import type { ListOrdersQueryDto } from './dto/query/list-orders-query.dto.js';
 import type { OrderResponseDto } from './dto/response/order-response.dto.js';
 
+const CLOSED_ORDER_STATUSES = ['READY', 'CANCELLED'] as const;
+
 function createdAtMs(order: OrderRecord): number {
     return new Date(toIsoTimestamp(order.createdAt)).getTime();
 }
 
 function byCreatedAtThenId(a: OrderRecord, b: OrderRecord): number {
     return createdAtMs(a) - createdAtMs(b) || a.id - b.id;
+}
+
+function byNewestFirst(a: OrderRecord, b: OrderRecord): number {
+    return byCreatedAtThenId(b, a);
 }
 
 function tableNotFound(): BadRequestException {
@@ -79,12 +85,13 @@ export class OrdersService {
         return this.findOne(order.id);
     }
 
+    // updatedSince: every changed order, no limit (catch-up must not lose rows).
+    // Default: every open order plus the newest closed orders of today (limit applies to closed only).
     async list(query: ListOrdersQueryDto): Promise<OrderResponseDto[]> {
         const rows = query.updatedSince
             ? await this.fetchUpdatedSince(query.updatedSince, query.status)
-            : await this.fetchCurrent(query.status);
-        const page = rows.sort(byCreatedAtThenId).slice(0, query.limit ?? ORDER_LIST_DEFAULT_LIMIT);
-        return this.toResponses(page);
+            : await this.fetchCurrent(query.status, query.limit ?? ORDER_LIST_DEFAULT_LIMIT);
+        return this.toResponses(rows.sort(byCreatedAtThenId));
     }
 
     async findOne(id: number): Promise<OrderResponseDto> {
@@ -109,7 +116,7 @@ export class OrdersService {
     }
 
     private async requireTable(tableId: number): Promise<void> {
-        const table = await this.orm.DiningTable.where({ id: tableId }).first();
+        const table = await this.orm.DiningTable.where({ id: tableId}).first();
         if (!table) {
             throw tableNotFound();
         }
@@ -144,23 +151,30 @@ export class OrdersService {
         return status ? base.where({ status }).all() : base.all();
     }
 
-    // Today's orders (business day in APP_TIMEZONE) plus older orders that are still open
-    private async fetchCurrent(status?: OrderStatusValue): Promise<OrderRecord[]> {
+    // Every open order (any date) plus the newest `limit` closed orders of the current business day
+    private async fetchCurrent(status: OrderStatusValue | undefined, limit: number): Promise<OrderRecord[]> {
         const dayStart = startOfDayInTimeZone(new Date(), getAppTimeZone(this.config)).toISOString();
-        const today = this.orm.Order.where((o) => o.createdAt.gte(dayStart));
-        const todayRows = status ? await today.where({ status }).all() : await today.all();
-        const olderOpen = await this.fetchOlderOpen(dayStart, status);
-        return [...todayRows, ...olderOpen];
+        const open = await this.fetchOpen(status);
+        const closed = await this.fetchNewestClosedToday(dayStart, status, limit);
+        return [...open, ...closed];
     }
 
-    private async fetchOlderOpen(dayStart: string, status?: OrderStatusValue): Promise<OrderRecord[]> {
+    private async fetchOpen(status?: OrderStatusValue): Promise<OrderRecord[]> {
         const statuses = status ? OPEN_ORDER_STATUSES.filter((s) => s === status) : OPEN_ORDER_STATUSES;
         const rows: OrderRecord[] = [];
         for (const open of statuses) {
-            const older = await this.orm.Order.where({ status: open }).where((o) => o.createdAt.lt(dayStart)).all();
-            rows.push(...older);
+            rows.push(...(await this.orm.Order.where({ status: open }).all()));
         }
         return rows;
+    }
+
+    private async fetchNewestClosedToday(dayStart: string, status: OrderStatusValue | undefined, limit: number): Promise<OrderRecord[]> {
+        const statuses = status ? CLOSED_ORDER_STATUSES.filter((s) => s === status) : CLOSED_ORDER_STATUSES;
+        const rows: OrderRecord[] = [];
+        for (const closed of statuses) {
+            rows.push(...(await this.orm.Order.where({ status: closed }).where((o) => o.createdAt.gte(dayStart)).all()));
+        }
+        return rows.sort(byNewestFirst).slice(0, limit);
     }
 
     private async toResponses(orders: OrderRecord[]): Promise<OrderResponseDto[]> {

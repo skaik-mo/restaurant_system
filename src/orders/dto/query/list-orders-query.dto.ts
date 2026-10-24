@@ -12,14 +12,20 @@ export class ListOrdersQueryDto {
 
     @ApiPropertyOptional({
         example: EXAMPLES.timestamp,
-        description: 'Only orders updated strictly after this ISO 8601 timestamp (include the time zone, e.g. Z). Replaces the default business-day window',
+        description: 'Only orders updated strictly after this ISO 8601 timestamp (include the time zone, e.g. Z). Replaces the default window and ignores limit: every changed order is returned',
     })
     @ValidateIf((_, value) => value !== undefined)
     @IsISO8601({ strict: true, strictSeparator: true })
     @MaxLength(40)
     updatedSince?: string;
 
-    @ApiPropertyOptional({ example: EXAMPLES.orderLimit, minimum: 1, maximum: ORDER_LIST_MAX_LIMIT, default: ORDER_LIST_DEFAULT_LIMIT })
+    @ApiPropertyOptional({
+        example: EXAMPLES.orderLimit,
+        minimum: 1,
+        maximum: ORDER_LIST_MAX_LIMIT,
+        default: ORDER_LIST_DEFAULT_LIMIT,
+        description: 'Maximum number of closed (READY/CANCELLED) orders of today to return, newest kept. Open orders are always all returned. Ignored when updatedSince is set',
+    })
     @ValidateIf((_, value) => value !== undefined)
     @Type(() => Number)
     @IsInt()
