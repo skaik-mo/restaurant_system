@@ -9,6 +9,6 @@ import { StreamLimiter } from './stream-limiter.service.js';
     imports: [AuthModule],
     providers: [RealtimeBus, StreamLimiter, RealtimeService],
     controllers: [RealtimeController],
-    exports: [RealtimeBus],
+    exports: [RealtimeBus, RealtimeService],
 })
 export class RealtimeModule { }
