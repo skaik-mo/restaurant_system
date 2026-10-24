@@ -36,7 +36,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.db.client.orm.public.User.where({ email: dto.email }).first();
     const valid = await verifyPasswordOrDummy(user?.password, dto.password);
-    if (!user || !valid) {
+    if (!user || !user.isActive || !valid) {
       throw new UnauthorizedException(AUTH_ERRORS.INVALID_CREDENTIALS)
     }
     const tokens = await this.generateAuthTokens(user.id, user.role, user.email);
@@ -109,7 +109,7 @@ export class AuthService {
       id: tokenRow.userId,
     }).first();
 
-    if (!user) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN)
     }
 
@@ -186,7 +186,7 @@ export class AuthService {
   async forgotPassword(email: string): Promise<void> {
     const user = await this.db.client.orm.public.User.where({ email }).first();
 
-    if (!user) {
+    if (!user || !user.isActive) {
       return;
     }
 
@@ -213,6 +213,7 @@ export class AuthService {
 
     if (
       !user ||
+      !user.isActive ||
       !user.passwordResetExpiresAt ||
       new Date(user.passwordResetExpiresAt) < new Date()
     ) {

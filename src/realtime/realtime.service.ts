@@ -11,6 +11,8 @@ import type { StreamUser } from './realtime.types.js';
 
 @Injectable()
 export class RealtimeService {
+    private readonly streamsByUser = new Map<number, Set<ServerResponse>>();
+
     constructor(
         private readonly bus: RealtimeBus,
         private readonly limiter: StreamLimiter,
@@ -21,7 +23,21 @@ export class RealtimeService {
         const msLeft = this.msUntilExpiry(user);
         const release = this.acquireSlot(user.sub, ip);
         this.writeHead(res);
-        this.attach(res, msLeft, release);
+        this.attach(user.sub, res, msLeft, release);
+    }
+
+    // Ends every open stream of one user (used when an admin deactivates the user).
+    // The existing 'close' handler then releases the limiter slot and unsubscribes.
+    closeUserStreams(userId: number): void {
+        const streams = this.streamsByUser.get(userId);
+        if (!streams) {
+            return;
+        }
+        for (const res of streams) {
+            if (!res.writableEnded && !res.destroyed) {
+                res.end();
+            }
+        }
     }
 
     // Fail closed: a token without a usable exp never gets a stream
@@ -53,7 +69,7 @@ export class RealtimeService {
         });
     }
 
-    private attach(res: ServerResponse, msLeft: number, release: () => void): void {
+    private attach(userId: number, res: ServerResponse, msLeft: number, release: () => void): void {
         this.send(res, formatEvent('ready', { serverTime: new Date().toISOString() }));
         const subscription = this.frames()
             .pipe(takeUntil(timer(msLeft)))
@@ -61,11 +77,30 @@ export class RealtimeService {
                 next: (frame) => this.send(res, frame),
                 complete: () => res.end(),
             });
+        this.track(userId, res);
         res.on('close', () => {
             subscription.unsubscribe();
+            this.untrack(userId, res);
             release();
         });
         res.on('error', () => res.destroy());
+    }
+
+    private track(userId: number, res: ServerResponse): void {
+        const streams = this.streamsByUser.get(userId) ?? new Set<ServerResponse>();
+        streams.add(res);
+        this.streamsByUser.set(userId, streams);
+    }
+
+    private untrack(userId: number, res: ServerResponse): void {
+        const streams = this.streamsByUser.get(userId);
+        if (!streams) {
+            return;
+        }
+        streams.delete(res);
+        if (streams.size === 0) {
+            this.streamsByUser.delete(userId);
+        }
     }
 
     private frames(): Observable<string> {

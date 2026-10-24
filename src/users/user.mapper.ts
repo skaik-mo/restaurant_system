@@ -8,11 +8,11 @@ export interface UserRecord {
   email: string;
   role: string;
   emailVerified: boolean;
+  isActive: boolean;
   mustChangePassword: boolean;
   createdAt: string;
   updatedAt: string;
 }
-
 
 export function toUserResponseDto(user: UserRecord): UserResponseDto {
   return {
@@ -21,6 +21,7 @@ export function toUserResponseDto(user: UserRecord): UserResponseDto {
     email: user.email,
     role: user.role as UserRole,
     emailVerified: user.emailVerified,
+    isActive: user.isActive,
     mustChangePassword: user.mustChangePassword,
     createdAt: toIsoTimestamp(user.createdAt),
     updatedAt: toIsoTimestamp(user.updatedAt),

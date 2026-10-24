@@ -18,6 +18,9 @@ export class UserResponseDto {
   @ApiProperty({ example: false })
   emailVerified!: boolean;
 
+  @ApiProperty({ example: true, description: 'False when an admin has deactivated the user; the user cannot log in or use any token' })
+  isActive!: boolean;
+
   @ApiProperty({ example: true, description: 'True until the user sets their own password' })
   mustChangePassword!: boolean;
 
